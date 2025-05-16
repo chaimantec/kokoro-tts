@@ -1,0 +1,17 @@
+{
+  "name": "kokoro-tts-api",
+  "version": "1.0.0",
+  "description": "API server for Kokoro TTS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "generate-certs": "./generate-certs.sh",
+    "setup": "npm install && npm run generate-certs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@google-cloud/text-to-speech": "^4.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}
