@@ -282,6 +282,31 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
   return true; // Keep the message channel open for async responses
 });
 
+// Function to get selected text from the active tab
+async function getSelectedTextFromActiveTab(): Promise<string> {
+  try {
+    // Get the active tab
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) {
+      console.error('No active tab found');
+      return '';
+    }
+
+    // Execute a script to get the selected text
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: tabs[0].id! },
+      func: () => window.getSelection()?.toString() || ''
+    });
+
+    const selectedText = results[0].result as string;
+    console.log('Selected text:', selectedText);
+    return selectedText;
+  } catch (error) {
+    console.error('Error getting selected text:', error);
+    return '';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const textInput = document.getElementById('textInput') as HTMLTextAreaElement;
   const voiceSelect = document.getElementById('voiceSelect') as HTMLSelectElement;
@@ -296,6 +321,29 @@ document.addEventListener('DOMContentLoaded', function() {
   const stopButtonAlt = document.getElementById('stopButtonAlt') as HTMLButtonElement;
 
   console.log('Kokori Speak TTS Engine popup opened');
+
+  // Check for selected text when popup opens
+  (async () => {
+    try {
+      const selectedText = await getSelectedTextFromActiveTab();
+      if (selectedText) {
+        console.log('Found selected text when popup opened');
+
+        // Always set the text in the input field
+        textInput.value = selectedText;
+
+        // Only play the text if no audio is currently playing
+        if (playbackState === PlaybackState.IDLE) {
+          console.log('No audio currently playing, reading selected text');
+          playTextWithTTS(selectedText);
+        } else {
+          console.log('Audio already playing, just pasted text in textbox');
+        }
+      }
+    } catch (error) {
+      console.error('Error handling selected text on popup open:', error);
+    }
+  })();
 
   // Populate voice selection dropdown
   AVAILABLE_VOICES.forEach(voice => {
