@@ -10,9 +10,15 @@
     "preview": "vite preview",
     "api:setup": "cd src/api && npm run setup",
     "api:start": "cd src/api && npm start",
-    "package-extension": "./package-extension.sh"
+    "package-extension": "./package-extension.sh",
+    "test:kokoro": "vite --config vite.test.config.js",
+    "test:kokoro:node": "node test-kokoro-node.js",
+    "test:kokoro:stream": "node test-kokoro-stream.js",
+    "test:kokoro:stream:webgpu": "node test-kokoro-stream.js --webgpu"
   },
-  "dependencies": {},
+  "dependencies": {
+    "kokoro-js": "^1.2.1"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
     "@types/node": "^20.11.24",
