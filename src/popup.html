@@ -32,13 +32,31 @@
       color: var(--text);
       line-height: 1.5;
       box-shadow: inset 0 0 30px var(--shadow);
+      position: relative;
+      min-height: 400px;
     }
 
     .status-container {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      z-index: 100;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      margin-bottom: 15px;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    @keyframes fadeOut {
+      from { opacity: 1; transform: translateX(-50%) translateY(0); }
+      to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
     }
 
     .status {
@@ -49,6 +67,12 @@
       box-shadow: 0 2px 4px var(--shadow);
       font-size: 14px;
       transition: var(--transition);
+    }
+
+    .status.error {
+      background-color: #FFEBEE;
+      border-color: #D32F2F;
+      color: #B71C1C;
     }
 
     .status:hover {
@@ -108,10 +132,12 @@
       height: 8px;
       -webkit-appearance: none;
       appearance: none;
-      background: var(--background);
+      background: var(--primary-light);
       border-radius: 4px;
       outline: none;
       margin-top: 8px;
+      border: 1px solid var(--primary);
+      box-shadow: inset 0 1px 3px var(--shadow);
     }
 
     .slider::-webkit-slider-thumb {
@@ -123,6 +149,8 @@
       background: var(--primary);
       cursor: pointer;
       transition: var(--transition);
+      border: 2px solid var(--paper);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .slider::-moz-range-thumb {
@@ -132,17 +160,20 @@
       background: var(--primary);
       cursor: pointer;
       transition: var(--transition);
-      border: none;
+      border: 2px solid var(--paper);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
 
     .slider::-webkit-slider-thumb:hover {
       background: var(--primary-dark);
       transform: scale(1.1);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
     }
 
     .slider::-moz-range-thumb:hover {
       background: var(--primary-dark);
       transform: scale(1.1);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
     }
 
     textarea {
@@ -200,8 +231,19 @@
       width: 100%;
     }
 
-    .playback-main-controls {
+    .playback-controls-container {
       margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    .playback-controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .playback-controls button {
+      height: 44px;
     }
 
     .button-content {
@@ -216,25 +258,28 @@
       flex-shrink: 0;
     }
 
-    #playbackControls {
-      display: none;
-      margin-top: 12px;
-      gap: 8px;
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    #playPauseButton {
-      height: 44px;
-      position: relative;
-      overflow: hidden;
+    #playButton, #pauseButton, #resumeButton {
       background-image: linear-gradient(to right, var(--primary), var(--primary-light));
     }
 
-    #playPauseButton:hover {
+    #playButton:hover, #pauseButton:hover, #resumeButton:hover {
       background-image: linear-gradient(to right, var(--primary-dark), var(--primary));
     }
 
-    .help-section {
+    #stopButton, #stopButtonAlt {
+      background-color: #9E7B4F;
+    }
+
+    #stopButton:hover, #stopButtonAlt:hover {
+      background-color: #876A43;
+    }
+
+    /* For the full-width play button */
+    .full-width {
+      grid-column: span 2;
+    }
+
+    .help-section, .settings-section {
       margin-top: 20px;
       border: 1px solid var(--primary);
       border-radius: var(--radius);
@@ -243,7 +288,12 @@
       box-shadow: 0 2px 4px var(--shadow);
     }
 
-    .help-title {
+    .settings-section {
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    .help-title, .settings-title {
       margin: 0 0 10px 0;
       font-weight: 700;
       font-size: 15px;
@@ -276,7 +326,7 @@
 </head>
 <body>
   <div class="status-container" id="statusContainer" style="display: none;">
-    <div class="status" id="status">
+    <div class="status error" id="status">
       <strong>Error:</strong> <span id="statusMessage">No errors</span>
     </div>
   </div>
@@ -285,55 +335,81 @@
     <label for="textInput">Enter or paste text to read:</label>
     <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
 
-    <div class="voice-controls">
-      <label for="voiceSelect">Voice:</label>
-      <select id="voiceSelect" class="select-control">
-        <!-- Will be populated from JavaScript -->
-      </select>
-    </div>
-
-    <div class="slider-controls">
-      <div class="slider-group">
-        <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
-        <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+    <div class="playback-controls-container">
+      <!-- Play state (initial state) -->
+      <div id="playControls" class="playback-controls">
+        <button class="button full-width" id="playButton">
+          <div class="button-content">
+            <svg class="play-icon" viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M8 5v14l11-7z"/>
+            </svg>
+            <span>Play</span>
+          </div>
+        </button>
       </div>
 
-      <div class="slider-group">
-        <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
-        <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+      <!-- Playing state (pause/stop buttons) -->
+      <div id="pauseStopControls" class="playback-controls" style="display: none;">
+        <button class="button" id="pauseButton">
+          <div class="button-content">
+            <svg class="pause-icon" viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+            <span>Pause</span>
+          </div>
+        </button>
+        <button class="button" id="stopButton">
+          <div class="button-content">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M6 6h12v12H6z"/>
+            </svg>
+            <span>Stop</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Paused state (resume/stop buttons) -->
+      <div id="resumeStopControls" class="playback-controls" style="display: none;">
+        <button class="button" id="resumeButton">
+          <div class="button-content">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M8 5v14l11-7z"/>
+            </svg>
+            <span>Resume</span>
+          </div>
+        </button>
+        <button class="button" id="stopButtonAlt">
+          <div class="button-content">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <path fill="currentColor" d="M6 6h12v12H6z"/>
+            </svg>
+            <span>Stop</span>
+          </div>
+        </button>
       </div>
     </div>
 
-    <div class="playback-main-controls">
-      <button class="button full-width" id="playPauseButton">
-        <div class="button-content">
-          <svg class="play-icon" viewBox="0 0 24 24" width="16" height="16">
-            <path fill="currentColor" d="M8 5v14l11-7z"/>
-          </svg>
-          <span>Play</span>
-        </div>
-        <div class="button-content" style="display: none;">
-          <svg class="pause-icon" viewBox="0 0 24 24" width="16" height="16">
-            <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-          </svg>
-          <span>Pause</span>
-        </div>
-      </button>
-    </div>
+    <div class="settings-section">
+      <p class="settings-title">Voice Settings:</p>
 
-    <div id="playbackControls" style="display: none;">
-      <button class="button" id="resumeButton">
-        <svg viewBox="0 0 24 24" width="16" height="16">
-          <path fill="currentColor" d="M8 5v14l11-7z"/>
-        </svg>
-        Resume
-      </button>
-      <button class="button" id="stopButton">
-        <svg viewBox="0 0 24 24" width="16" height="16">
-          <path fill="currentColor" d="M6 6h12v12H6z"/>
-        </svg>
-        Stop
-      </button>
+      <div class="voice-controls">
+        <label for="voiceSelect">Voice:</label>
+        <select id="voiceSelect" class="select-control">
+          <!-- Will be populated from JavaScript -->
+        </select>
+      </div>
+
+      <div class="slider-controls">
+        <div class="slider-group">
+          <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
+          <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+        </div>
+
+        <div class="slider-group">
+          <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
+          <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -344,7 +420,7 @@
       <li>Select text on any webpage and either:
         <ul>
           <li>Right-click on the selected text and choose "Read with Kokori" from the context menu, or</li>
-          <li>Press <kbd>Ctrl+Shift+S</kbd> (<kbd>⌘+Shift+S</kbd> on Mac)</li>
+          <li>Press <kbd>Ctrl+Shift+S</kbd> (<kbd>&#8984;+Shift+S</kbd> on Mac)</li>
         </ul>
       </li>
     </ol>

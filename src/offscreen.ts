@@ -168,25 +168,49 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
     // Create a source node for tracking playback
     const source = audioContext.createBufferSource();
     source.buffer = currentBuffer;
-    
+
     // Store the current audio source for pause/resume functionality
     currentAudioSource = source;
 
     // When this chunk ends, play the next one
     const playbackDuration = currentBuffer.duration / speed;
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       log('Chunk playback completed');
       isPlaying = false;
       currentAudioSource = null;
       currentChunk = null;
       currentBuffer = null;
-      playNextInQueue(speed, pitch);
+
+      // Only proceed to the next chunk if we haven't been stopped
+      if (audioQueue.length > 0 && audioContext && audioContext.state !== 'suspended') {
+        playNextInQueue(speed, pitch);
+      } else {
+        log('No more chunks to play or playback was stopped');
+
+        // If there are no more chunks and we're not suspended, we've completed playback
+        if (audioQueue.length === 0 && audioContext && audioContext.state !== 'suspended') {
+          // Notify background script about playback completion
+          chrome.runtime.sendMessage({
+            type: 'playbackStatus',
+            state: 'idle'
+          });
+        }
+      }
     }, playbackDuration * 1000);
+
+    // Store the timeout ID so we can clear it if playback is stopped
+    (window as any).currentChunkTimeoutId = timeoutId;
 
     // Start playing the audio
     pitchShifter.start();
 
     log('Playing audio chunk...');
+
+    // Notify background script about playback status
+    chrome.runtime.sendMessage({
+      type: 'playbackStatus',
+      state: 'playing'
+    });
   } catch (error: any) {
     log(`Error playing audio chunk: ${error.message}`);
     isPlaying = false;
@@ -210,6 +234,12 @@ function pauseAudio(): void {
       log('Audio context suspended successfully');
       isPaused = true;
       isPlaying = false;
+
+      // Notify background script about playback status
+      chrome.runtime.sendMessage({
+        type: 'playbackStatus',
+        state: 'paused'
+      });
     }).catch(error => {
       log('Error suspending audio context: ' + error);
     });
@@ -227,6 +257,12 @@ function resumeAudio(): void {
       log('Audio context resumed successfully');
       isPaused = false;
       isPlaying = true;
+
+      // Notify background script about playback status
+      chrome.runtime.sendMessage({
+        type: 'playbackStatus',
+        state: 'playing'
+      });
     }).catch(error => {
       log('Error resuming audio context: ' + error);
     });
@@ -438,6 +474,16 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       sendResponse({ success: true });
       return true;
     } else if (message.type === 'stopAudio') {
+      // Immediately stop all audio playback
+      log('Stopping all audio playback immediately');
+
+      // Clear any pending timeouts for chunk playback
+      if ((window as any).currentChunkTimeoutId) {
+        clearTimeout((window as any).currentChunkTimeoutId);
+        (window as any).currentChunkTimeoutId = null;
+        log('Cleared pending chunk timeout');
+      }
+
       // Clear the audio queue and reset playing state
       audioQueue = [];
       isPlaying = false;
@@ -447,6 +493,12 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       currentChunk = null;
       currentBuffer = null;
 
+      // Notify background script about playback status
+      chrome.runtime.sendMessage({
+        type: 'playbackStatus',
+        state: 'idle'
+      });
+
       // Stop any current audio source
       if (currentAudioSource) {
         try {
@@ -454,6 +506,40 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
           currentAudioSource = null;
         } catch (error) {
           log('Error stopping audio source: ' + error);
+        }
+      }
+
+      // Stop the pitch shifter if it exists
+      if (pitchShifter) {
+        try {
+          pitchShifter.stop();
+          log('Pitch shifter stopped');
+        } catch (error) {
+          log('Error stopping pitch shifter: ' + error);
+        }
+      }
+
+      // Suspend the audio context to immediately stop all audio processing
+      if (audioContext) {
+        try {
+          audioContext.suspend().then(() => {
+            log('Audio context suspended');
+
+            // Create a new audio context to ensure clean state for next playback
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+            // Reinitialize the pitch shifter with the new context
+            pitchShifter = new PitchShifter(audioContext);
+            pitchShifter.initialize().then(() => {
+              log('New audio context and pitch shifter initialized after stop');
+            }).catch(error => {
+              log('Error initializing new pitch shifter after stop: ' + error);
+            });
+          }).catch(error => {
+            log('Error suspending audio context: ' + error);
+          });
+        } catch (error) {
+          log('Error handling audio context during stop: ' + error);
         }
       }
 

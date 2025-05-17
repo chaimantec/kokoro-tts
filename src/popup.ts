@@ -59,14 +59,10 @@ async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<v
   // Update state
   playbackState = PlaybackState.PLAYING;
 
-  // Show playback controls
-  const playbackControls = document.getElementById('playbackControls');
-  if (playbackControls) {
-    playbackControls.style.display = 'grid';
-  }
+  // We'll update the playback controls in updatePlaybackControls()
 
-  // Update play/pause button to show pause state
-  updatePlayPauseButton();
+  // Update playback controls to show pause/stop state
+  updatePlaybackControls();
 
   try {
     // Send message to background script to play audio with voice, speed, and pitch settings
@@ -84,37 +80,42 @@ async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<v
     // Update state
     playbackState = PlaybackState.IDLE;
 
-    // Hide playback controls
-    if (playbackControls) {
-      playbackControls.style.display = 'none';
-    }
+    // We'll update the playback controls in updatePlaybackControls()
 
-    // Update play/pause button to show play state
-    updatePlayPauseButton();
+    // Update playback controls to show play state
+    updatePlaybackControls();
 
     // Show error status
     showErrorStatus(`Failed to play audio: ${error.message || 'Unknown error'}`);
   }
 }
 
-// Helper function to update the play/pause button state
-function updatePlayPauseButton(): void {
-  const playPauseButton = document.getElementById('playPauseButton') as HTMLButtonElement;
-  if (!playPauseButton) return;
+// Helper function to update the playback controls based on state
+function updatePlaybackControls(): void {
+  const playControls = document.getElementById('playControls') as HTMLDivElement;
+  const pauseStopControls = document.getElementById('pauseStopControls') as HTMLDivElement;
+  const resumeStopControls = document.getElementById('resumeStopControls') as HTMLDivElement;
 
-  const playContent = playPauseButton.querySelector('.button-content:first-child') as HTMLElement;
-  const pauseContent = playPauseButton.querySelector('.button-content:last-child') as HTMLElement;
+  if (!playControls || !pauseStopControls || !resumeStopControls) return;
 
+  // Hide all controls first
+  playControls.style.display = 'none';
+  pauseStopControls.style.display = 'none';
+  resumeStopControls.style.display = 'none';
+
+  // Show the appropriate controls based on state
   if (playbackState === PlaybackState.PLAYING) {
-    // Show pause state
-    if (playContent) playContent.style.display = 'none';
-    if (pauseContent) pauseContent.style.display = 'flex';
+    pauseStopControls.style.display = 'grid';
+  } else if (playbackState === PlaybackState.PAUSED) {
+    resumeStopControls.style.display = 'grid';
   } else {
-    // Show play state
-    if (playContent) playContent.style.display = 'flex';
-    if (pauseContent) pauseContent.style.display = 'none';
+    // IDLE state
+    playControls.style.display = 'grid';
   }
 }
+
+// Variable to track the current error timeout
+let errorTimeoutId: number | null = null;
 
 // Helper function to show error status
 function showErrorStatus(message: string): void {
@@ -122,8 +123,33 @@ function showErrorStatus(message: string): void {
   const statusMessage = document.getElementById('statusMessage') as HTMLSpanElement;
 
   if (statusContainer && statusMessage) {
+    // Clear any existing timeout
+    if (errorTimeoutId !== null) {
+      window.clearTimeout(errorTimeoutId);
+      errorTimeoutId = null;
+    }
+
+    // Reset any ongoing animations
+    statusContainer.style.animation = 'none';
+    // Trigger reflow to restart animation
+    void statusContainer.offsetWidth;
+    statusContainer.style.animation = 'fadeIn 0.3s ease-in-out';
+
+    // Update message and show container
     statusMessage.textContent = message;
     statusContainer.style.display = 'block';
+
+    // Set timeout to hide the error after 3 seconds
+    errorTimeoutId = window.setTimeout(() => {
+      // Apply fadeOut animation
+      statusContainer.style.animation = 'fadeOut 0.3s ease-in-out';
+
+      // Hide after animation completes
+      window.setTimeout(() => {
+        statusContainer.style.display = 'none';
+        errorTimeoutId = null;
+      }, 300);
+    }, 3000);
   }
 }
 
@@ -131,6 +157,12 @@ function showErrorStatus(message: string): void {
 function hideStatus(): void {
   const statusContainer = document.getElementById('statusContainer') as HTMLDivElement;
   if (statusContainer) {
+    // Clear any existing timeout
+    if (errorTimeoutId !== null) {
+      window.clearTimeout(errorTimeoutId);
+      errorTimeoutId = null;
+    }
+
     statusContainer.style.display = 'none';
   }
 }
@@ -145,8 +177,8 @@ function pausePlayback(): void {
     // Update state
     playbackState = PlaybackState.PAUSED;
 
-    // Update play/pause button
-    updatePlayPauseButton();
+    // Update playback controls
+    updatePlaybackControls();
 
     // Send message to background script to pause audio
     chrome.runtime.sendMessage({
@@ -161,8 +193,8 @@ function resumePlayback(): void {
     // Update state
     playbackState = PlaybackState.PLAYING;
 
-    // Update play/pause button
-    updatePlayPauseButton();
+    // Update playback controls
+    updatePlaybackControls();
 
     // Send message to background script to resume audio
     chrome.runtime.sendMessage({
@@ -176,14 +208,10 @@ function stopPlayback(): void {
   // Update state
   playbackState = PlaybackState.IDLE;
 
-  // Hide playback controls
-  const playbackControls = document.getElementById('playbackControls');
-  if (playbackControls) {
-    playbackControls.style.display = 'none';
-  }
+  // We'll update the playback controls in updatePlaybackControls()
 
-  // Update play/pause button
-  updatePlayPauseButton();
+  // Update playback controls
+  updatePlaybackControls();
 
   // Hide any status messages
   hideStatus();
@@ -223,27 +251,13 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     playbackState = message.state as PlaybackState;
 
     // Update UI based on playback state
-    const playbackControls = document.getElementById('playbackControls');
-
     if (playbackState === PlaybackState.PLAYING) {
-      if (playbackControls) {
-        playbackControls.style.display = 'grid';
-      }
       // Hide any error messages
       hideStatus();
-    } else if (playbackState === PlaybackState.PAUSED) {
-      if (playbackControls) {
-        playbackControls.style.display = 'grid';
-      }
-    } else {
-      // IDLE state
-      if (playbackControls) {
-        playbackControls.style.display = 'none';
-      }
     }
 
-    // Update play/pause button state
-    updatePlayPauseButton();
+    // Update the playback controls
+    updatePlaybackControls();
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
@@ -255,8 +269,8 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     // Update state
     playbackState = PlaybackState.IDLE;
 
-    // Update UI
-    updatePlayPauseButton();
+    // Update playback controls
+    updatePlaybackControls();
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
@@ -275,10 +289,11 @@ document.addEventListener('DOMContentLoaded', function() {
   const pitchSlider = document.getElementById('pitchSlider') as HTMLInputElement;
   const speedValue = document.getElementById('speedValue') as HTMLSpanElement;
   const pitchValue = document.getElementById('pitchValue') as HTMLSpanElement;
-  const playPauseButton = document.getElementById('playPauseButton') as HTMLButtonElement;
+  const playButton = document.getElementById('playButton') as HTMLButtonElement;
+  const pauseButton = document.getElementById('pauseButton') as HTMLButtonElement;
   const resumeButton = document.getElementById('resumeButton') as HTMLButtonElement;
   const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
-  const playbackControls = document.getElementById('playbackControls') as HTMLDivElement;
+  const stopButtonAlt = document.getElementById('stopButtonAlt') as HTMLButtonElement;
 
   console.log('Kokori Speak TTS Engine popup opened');
 
@@ -329,8 +344,8 @@ document.addEventListener('DOMContentLoaded', function() {
     saveSettings();
   });
 
-  // Initialize play/pause button state
-  updatePlayPauseButton();
+  // Initialize playback controls state
+  updatePlaybackControls();
 
   // Check if there's an active speech request from the background script
   chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
@@ -358,13 +373,10 @@ document.addEventListener('DOMContentLoaded', function() {
         pitchValue.textContent = currentPitch.toFixed(1);
       }
 
-      // Show playback controls
-      if (playbackControls) {
-        playbackControls.style.display = 'grid';
-      }
+      // We'll update the playback controls in updatePlaybackControls()
 
-      // Update play/pause button
-      updatePlayPauseButton();
+      // Update playback controls
+      updatePlaybackControls();
     }
   });
 
@@ -389,35 +401,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Add event listener for the play/pause button
-  playPauseButton.addEventListener('click', function() {
-    if (playbackState === PlaybackState.IDLE) {
-      // Get the text from the input field
-      const text = textInput.value.trim();
+  // Add event listener for the play button
+  playButton.addEventListener('click', function() {
+    // Get the text from the input field
+    const text = textInput.value.trim();
 
-      if (!text) {
-        // If the text is empty, show an error
-        showErrorStatus('Please enter some text to read.');
-        return;
-      }
-
-      // Play the text using the background script
-      playTextWithTTS(text);
-    } else if (playbackState === PlaybackState.PLAYING) {
-      // Pause playback
-      pausePlayback();
-    } else if (playbackState === PlaybackState.PAUSED) {
-      // Resume playback
-      resumePlayback();
+    if (!text) {
+      // If the text is empty, show an error
+      showErrorStatus('Please enter some text to read.');
+      return;
     }
+
+    // Play the text using the background script
+    playTextWithTTS(text);
   });
 
-  // Add event listeners for playback control buttons
+  // Add event listener for the pause button
+  pauseButton.addEventListener('click', function() {
+    pausePlayback();
+  });
+
+  // Add event listener for the resume button
   resumeButton.addEventListener('click', function() {
     resumePlayback();
   });
 
+  // Add event listeners for both stop buttons
   stopButton.addEventListener('click', function() {
+    stopPlayback();
+  });
+
+  stopButtonAlt.addEventListener('click', function() {
     stopPlayback();
   });
 });

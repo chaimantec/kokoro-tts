@@ -387,6 +387,23 @@ async function ensureOffscreenDocument(): Promise<void> {
   });
 
   console.log('Created offscreen document for audio playback');
+
+  // If we were in a speaking state but the offscreen document was closed,
+  // we need to reset our state and notify the popup
+  if (isSpeaking) {
+    console.log('Offscreen document was recreated while in speaking state, resetting state');
+
+    // Reset state
+    isSpeaking = false;
+    currentUtterance = null;
+    currentSendTtsEventId = null;
+
+    // Notify popup about playback status change
+    chrome.runtime.sendMessage({
+      type: 'playbackStatus',
+      state: 'idle'
+    });
+  }
 }
 
 // Function to load settings from Chrome storage
@@ -480,6 +497,48 @@ async function readTextWithCustomTTS(
     currentPitch = null;
   }
 }
+
+// We'll use a periodic check to detect if the offscreen document is closed unexpectedly
+let offscreenCheckInterval: ReturnType<typeof setTimeout> | null = null;
+
+// Function to check if the offscreen document exists and update state if needed
+async function checkOffscreenDocument() {
+  // Only check if we're in a speaking state
+  if (isSpeaking) {
+    try {
+      // Check if the offscreen document exists
+      const hasDocument = await chrome.offscreen.hasDocument();
+
+      if (!hasDocument) {
+        console.log('Offscreen document was closed while in speaking state, resetting state');
+
+        // Reset state
+        isSpeaking = false;
+        currentUtterance = null;
+        currentSendTtsEventId = null;
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'idle'
+        });
+      }
+    } catch (error) {
+      console.error('Error checking offscreen document status:', error);
+    }
+  }
+
+  // Schedule the next check
+  if (offscreenCheckInterval !== null) {
+    clearTimeout(offscreenCheckInterval);
+  }
+
+  // Schedule next check in 5 seconds
+  offscreenCheckInterval = setTimeout(checkOffscreenDocument, 5000);
+}
+
+// Start the offscreen check when the extension loads
+checkOffscreenDocument();
 
 // Register our engine with Chrome's TTS system
 browser.runtime.onInstalled.addListener(async () => {
