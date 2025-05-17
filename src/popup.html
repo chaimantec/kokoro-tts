@@ -36,6 +36,20 @@
       min-height: 400px;
     }
 
+    .app-header {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .app-header h1 {
+      margin: 0;
+      font-size: 24px;
+      color: var(--primary);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-shadow: 1px 1px 2px var(--shadow);
+    }
+
     .status-container {
       position: absolute;
       top: 10px;
@@ -331,6 +345,10 @@
     </div>
   </div>
 
+  <header class="app-header">
+    <h1>Kokoro Speak</h1>
+  </header>
+
   <div class="input-section">
     <label for="textInput">Enter or paste text to read:</label>
     <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
@@ -416,11 +434,19 @@
   <div class="help-section">
     <p class="help-title">How to use:</p>
     <ol>
-      <li>Enter or paste text in the box above and click "Play Text", or</li>
+      <li>Enter or paste text in the box above and click "Play" button, or</li>
       <li>Select text on any webpage and either:
         <ul>
-          <li>Right-click on the selected text and choose "Read with Kokori" from the context menu, or</li>
+          <li>Click the extension icon in the toolbar to automatically read the selected text</li>
+          <li>Right-click on the selected text and choose "Read with Kokoro" from the context menu</li>
           <li>Press <kbd>Ctrl+Shift+S</kbd> (<kbd>&#8984;+Shift+S</kbd> on Mac)</li>
+        </ul>
+      </li>
+      <li>Adjust voice, speed, and pitch settings as desired:
+        <ul>
+          <li>Settings are saved automatically and will be used for future playback</li>
+          <li>Use the pause/resume buttons to control playback</li>
+          <li>Click stop to end playback immediately</li>
         </ul>
       </li>
     </ol>
