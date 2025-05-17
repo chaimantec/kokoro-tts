@@ -1,7 +1,11 @@
 import { OffscreenMessage } from './types';
 import { KokoroTTS, TextSplitterStream, env } from 'kokoro-js';
+import { PitchShifter } from './audio-processor';
 
 env.wasmPaths = "/onnxruntime-web/"
+
+// Add a PitchShifter instance
+let pitchShifter: PitchShifter | null = null;
 
 // Access the KokoroTTS and TextSplitterStream from the global window object
 declare global {
@@ -16,7 +20,6 @@ declare global {
 }
 
 // Global variables
-let activeAudio: HTMLAudioElement | null = null;
 let kokoroModel: any = null;
 let isModelLoading = false;
 let audioContext: AudioContext | null = null;
@@ -24,6 +27,13 @@ let audioQueue: any[] = [];
 let isPlaying = false;
 let isPaused = false;
 let currentAudioSource: AudioBufferSourceNode | null = null;
+
+// Variables for audio playback
+let currentChunk: any = null;
+let currentBuffer: AudioBuffer | null = null;
+
+// Keep-alive mechanism
+let keepAliveInterval: number | null = null;
 
 // Log function
 function log(message: string): void {
@@ -39,7 +49,12 @@ function initAudioContext(): void {
   if (!audioContext) {
     try {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      log('Audio context initialized');
+      pitchShifter = new PitchShifter(audioContext);
+      pitchShifter.initialize().then(() => {
+        log('Audio context and pitch shifter initialized');
+      }).catch(error => {
+        log('Error initializing pitch shifter: ' + error.message);
+      });
     } catch (error: any) {
       log('Error initializing audio context: ' + error.message);
     }
@@ -121,53 +136,66 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
 }
 
 // Function to play audio chunks from the queue
-async function playNextInQueue(): Promise<void> {
-  if (audioQueue.length === 0 || isPlaying || isPaused) {
-    return;
-  }
-
-  isPlaying = true;
-  const audioChunk = audioQueue.shift();
-
+async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promise<void> {
   try {
-    log(`Playing chunk with length: ${audioChunk.audio.length}, sampling rate: ${audioChunk.sampling_rate}`);
+    // Check if we can play the next chunk
+    if (audioQueue.length === 0 || isPlaying || isPaused) {
+      return;
+    }
+
+    isPlaying = true;
+    currentChunk = audioQueue.shift();
+
+    log(`Playing chunk with length: ${currentChunk.audio.length}, sampling rate: ${currentChunk.sampling_rate}`);
 
     if (!audioContext) {
       initAudioContext();
     }
 
-    if (!audioContext) {
-      throw new Error('Audio context not available');
+    if (!audioContext || !pitchShifter) {
+      throw new Error('Audio context or pitch shifter not available');
     }
 
     // Create audio buffer from Float32Array
-    const buffer = audioContext.createBuffer(1, audioChunk.audio.length, audioChunk.sampling_rate);
-    const channelData = buffer.getChannelData(0);
-    channelData.set(audioChunk.audio);
+    currentBuffer = audioContext.createBuffer(1, currentChunk.audio.length, currentChunk.sampling_rate);
+    const channelData = currentBuffer.getChannelData(0);
+    channelData.set(currentChunk.audio);
 
-    // Play the audio
+    // Process the buffer with our pitch shifter
+    const outputNode = pitchShifter.process(currentBuffer, pitch, speed);
+    outputNode.connect(audioContext.destination);
+
+    // Create a source node for tracking playback
     const source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.connect(audioContext.destination);
-
+    source.buffer = currentBuffer;
+    
     // Store the current audio source for pause/resume functionality
     currentAudioSource = source;
 
     // When this chunk ends, play the next one
-    source.onended = () => {
+    const playbackDuration = currentBuffer.duration / speed;
+    setTimeout(() => {
       log('Chunk playback completed');
       isPlaying = false;
       currentAudioSource = null;
-      playNextInQueue();
-    };
+      currentChunk = null;
+      currentBuffer = null;
+      playNextInQueue(speed, pitch);
+    }, playbackDuration * 1000);
 
-    source.start();
+    // Start playing the audio
+    pitchShifter.start();
+
     log('Playing audio chunk...');
   } catch (error: any) {
-    log('Error playing audio chunk: ' + error.message);
+    log(`Error playing audio chunk: ${error.message}`);
     isPlaying = false;
     currentAudioSource = null;
-    playNextInQueue(); // Try the next chunk
+
+    // Try the next chunk
+    currentChunk = null;
+    currentBuffer = null;
+    playNextInQueue(speed, pitch);
   }
 }
 
@@ -175,28 +203,16 @@ async function playNextInQueue(): Promise<void> {
 function pauseAudio(): void {
   log('Pausing audio playback');
 
-  // If using HTML Audio element
-  if (activeAudio) {
-    activeAudio.pause();
-  }
-
-  // If using Web Audio API
   if (audioContext && isPlaying) {
-    // We can't actually pause a buffer source node, so we need to stop it
-    // and recreate it when resuming. For now, we'll just set the isPaused flag
-    // and stop adding new chunks to the queue.
-    isPaused = true;
-
-    if (currentAudioSource) {
-      try {
-        currentAudioSource.stop();
-        currentAudioSource = null;
-      } catch (error) {
-        log('Error stopping audio source: ' + error);
-      }
-    }
-
-    isPlaying = false;
+    // Simply suspend the audio context - this pauses all audio processing
+    // without stopping the AudioBufferSourceNode
+    audioContext.suspend().then(() => {
+      log('Audio context suspended successfully');
+      isPaused = true;
+      isPlaying = false;
+    }).catch(error => {
+      log('Error suspending audio context: ' + error);
+    });
   }
 }
 
@@ -204,36 +220,47 @@ function pauseAudio(): void {
 function resumeAudio(): void {
   log('Resuming audio playback');
 
-  // If using HTML Audio element
-  if (activeAudio) {
-    activeAudio.play().catch(error => {
-      log('Error resuming audio: ' + error);
-    });
-  }
-
-  // If using Web Audio API
   if (audioContext && isPaused) {
-    isPaused = false;
-
-    // Start playing the next chunk in the queue
-    playNextInQueue();
+    // Simply resume the audio context - this continues audio processing
+    // from exactly where it left off
+    audioContext.resume().then(() => {
+      log('Audio context resumed successfully');
+      isPaused = false;
+      isPlaying = true;
+    }).catch(error => {
+      log('Error resuming audio context: ' + error);
+    });
   }
 }
 
 // Function to play audio using Kokoro TTS
-async function playAudioWithKokoro(text: string, useWebGPU: boolean = false): Promise<void> {
-  log('Generating speech for: ' + text);
+async function playAudioWithKokoro(
+  text: string,
+  useWebGPU: boolean = false,
+  voice?: string,
+  speed?: number,
+  pitch?: number
+): Promise<void> {
+  log(`Generating speech for: "${text}" with voice: ${voice || 'default'}, speed: ${speed || 1.0}, pitch: ${pitch || 1.0}`);
 
   // Stop any currently playing audio
-  if (activeAudio) {
-    activeAudio.pause();
-    activeAudio = null;
+  if (currentAudioSource) {
+    try {
+      currentAudioSource.stop();
+      currentAudioSource = null;
+    } catch (error) {
+      log('Error stopping audio source: ' + error);
+    }
   }
 
   // Clear any existing audio queue
   audioQueue = [];
   isPlaying = false;
   isPaused = false;
+
+  // Reset audio playback variables
+  currentChunk = null;
+  currentBuffer = null;
 
   // Make sure the model is initialized
   if (!kokoroModel) {
@@ -275,8 +302,14 @@ async function playAudioWithKokoro(text: string, useWebGPU: boolean = false): Pr
     let sentenceCount = 0;
     let totalAudioLength = 0;
 
-    // Start streaming generation
-    for await (const chunk of kokoroModel.stream(splitter)) {
+    // Prepare generation options
+    const options: any = {};
+    if (voice) {
+      options.voice = voice;
+    }
+
+    // Start streaming generation with voice parameter if provided
+    for await (const chunk of kokoroModel.stream(splitter, options)) {
       sentenceCount++;
       log(`Received chunk ${sentenceCount}: "${chunk.text}"`);
 
@@ -289,7 +322,7 @@ async function playAudioWithKokoro(text: string, useWebGPU: boolean = false): Pr
 
       // Start playing if this is the first chunk and not already playing
       if (sentenceCount === 1) {
-        playNextInQueue();
+        playNextInQueue(speed, pitch);
       }
     }
 
@@ -322,85 +355,6 @@ async function playAudioWithKokoro(text: string, useWebGPU: boolean = false): Pr
       errorMessage: `Error generating speech: ${error.message}`
     });
   }
-}
-
-// Legacy function to play audio from the API (keeping for fallback)
-function playAudioFromApi(text: string): void {
-  log('Offscreen document playing audio from API for: ' + text);
-
-  // Stop any currently playing audio
-  if (activeAudio) {
-    activeAudio.pause();
-    activeAudio = null;
-  }
-
-  // Create a new audio element
-  const encodedText = encodeURIComponent(text);
-  const apiUrl = `https://localhost:3000/api/speech/stream?text=${encodedText}`;
-
-  const audio = new Audio(apiUrl);
-  activeAudio = audio;
-
-  // Set up event handlers
-  audio.onloadedmetadata = () => {
-    // Send start event
-    chrome.runtime.sendMessage({
-      type: 'ttsEvent',
-      eventType: 'start',
-      utterance: text
-    });
-  };
-
-  audio.onended = () => {
-    log('Audio playback ended');
-
-    // Send end event
-    chrome.runtime.sendMessage({
-      type: 'ttsEvent',
-      eventType: 'end',
-      utterance: text
-    });
-
-    // Clear the reference to the audio element
-    if (activeAudio === audio) {
-      activeAudio = null;
-    }
-  };
-
-  audio.onerror = (error) => {
-    console.error('Audio playback error:', error);
-
-    // Send error event
-    chrome.runtime.sendMessage({
-      type: 'ttsEvent',
-      eventType: 'error',
-      utterance: text,
-      errorMessage: `Error playing audio: ${error instanceof Event ? 'Unknown error' : error.toString()}`
-    });
-
-    // Clear the reference to the audio element
-    if (activeAudio === audio) {
-      activeAudio = null;
-    }
-  };
-
-  // Start playing the audio
-  audio.play().catch(error => {
-    console.error('Failed to play audio:', error);
-
-    // Send error event
-    chrome.runtime.sendMessage({
-      type: 'ttsEvent',
-      eventType: 'error',
-      utterance: text,
-      errorMessage: `Failed to play audio: ${error.message || 'Unknown error'}`
-    });
-
-    // Clear the reference to the audio element
-    if (activeAudio === audio) {
-      activeAudio = null;
-    }
-  });
 }
 
 // Function to check if WebGPU is available
@@ -436,7 +390,13 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
 
       // Use Kokoro TTS if the model is loaded, otherwise fall back to API
       if (kokoroModel) {
-        playAudioWithKokoro(message.text, useWebGPU)
+        playAudioWithKokoro(
+          message.text,
+          useWebGPU,
+          message.voice,
+          message.speed,
+          message.pitch
+        )
           .then(() => {
             sendResponse({ success: true });
           })
@@ -448,16 +408,20 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
         initKokoroModel(useWebGPU)
           .then(() => {
             // Now use Kokoro TTS
-            return playAudioWithKokoro(message.text, useWebGPU);
+            return playAudioWithKokoro(
+              message.text,
+              useWebGPU,
+              message.voice,
+              message.speed,
+              message.pitch
+            );
           })
           .then(() => {
             sendResponse({ success: true });
           })
           .catch((error) => {
-            // Fall back to API if model initialization fails
-            log('Falling back to API: ' + error.message);
-            playAudioFromApi(message.text);
-            sendResponse({ success: true });
+            log('Error initializing model: ' + error.message);
+            sendResponse({ success: false, error: error.message });
           });
       }
 
@@ -474,16 +438,14 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       sendResponse({ success: true });
       return true;
     } else if (message.type === 'stopAudio') {
-      // Stop any currently playing audio
-      if (activeAudio) {
-        activeAudio.pause();
-        activeAudio = null;
-      }
-
       // Clear the audio queue and reset playing state
       audioQueue = [];
       isPlaying = false;
       isPaused = false;
+
+      // Reset audio playback variables
+      currentChunk = null;
+      currentBuffer = null;
 
       // Stop any current audio source
       if (currentAudioSource) {
@@ -504,5 +466,27 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
   return true;
 });
 
+// Function to keep the offscreen document alive
+function startKeepAlive(): void {
+  // Clear any existing interval
+  if (keepAliveInterval !== null) {
+    clearInterval(keepAliveInterval);
+  }
+
+  // Set up a new interval to ping every 30 seconds
+  keepAliveInterval = setInterval(() => {
+    log('Keep-alive ping');
+    // Perform a minimal operation to keep the document active
+    if (audioContext) {
+      // Just check the current time to keep the audio context active
+      const currentTime = audioContext.currentTime;
+      log(`Current audio context time: ${currentTime}`);
+    }
+  }, 30000) as unknown as number; // 30 seconds
+}
+
 // Log when the offscreen document is loaded
-console.log('Sherlock TTS offscreen document loaded');
+console.log('Kokori Speak TTS offscreen document loaded');
+
+// Start the keep-alive mechanism immediately
+startKeepAlive();

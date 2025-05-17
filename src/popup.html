@@ -1,80 +1,350 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Sherlock TTS Engine</title>
+  <title>Kokori Speak TTS Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    body {
-      width: 300px;
-      padding: 15px;
-      font-family: 'Times New Roman', Times, serif;
-      background-color: #EED5AB; /* Beige background like in the SVG */
-      color: #744D26; /* Brown text color like in the SVG */
+    :root {
+      --primary: #744D26;
+      --primary-dark: #5A3D1E;
+      --primary-light: #8B6D46;
+      --background: #EED5AB;
+      --paper: #FFF8E7;
+      --text: #3A2613;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --radius: 8px;
+      --transition: all 0.3s ease;
     }
-    h1 {
-      font-size: 18px;
-      margin-bottom: 15px;
-      color: #744D26; /* Brown color like in the SVG */
-    }
-    .status {
-      margin-top: 15px;
-      padding: 10px;
-      border-radius: 4px;
-      background-color: #FFF8E7;
-      border: 1px solid #744D26; /* Brown border */
+
+    * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 350px;
+      padding: 20px;
+      font-family: 'Libre Baskerville', Georgia, serif;
+      background-color: var(--background);
+      color: var(--text);
+      line-height: 1.5;
+      box-shadow: inset 0 0 30px var(--shadow);
+    }
+
+    .status-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: var(--radius);
+      background-color: var(--paper);
+      border: 1px solid var(--primary);
+      box-shadow: 0 2px 4px var(--shadow);
+      font-size: 14px;
+      transition: var(--transition);
+    }
+
+    .status:hover {
+      box-shadow: 0 4px 8px var(--shadow);
+    }
+
+    .input-section {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--primary);
+    }
+
+    .voice-controls {
+      margin: 15px 0;
+    }
+
+    .select-control {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid var(--primary);
+      border-radius: var(--radius);
+      background-color: var(--paper);
+      font-family: 'Libre Baskerville', Georgia, serif;
+      color: var(--text);
+      font-size: 14px;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23744D26%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px top 50%;
+      background-size: 12px auto;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .select-control:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
+    }
+
+    .slider-controls {
+      margin: 15px 0;
+    }
+
+    .slider-group {
+      margin-bottom: 12px;
+    }
+
+    .slider {
+      width: 100%;
+      height: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--background);
+      border-radius: 4px;
+      outline: none;
+      margin-top: 8px;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      background: var(--primary-dark);
+      transform: scale(1.1);
+    }
+
+    .slider::-moz-range-thumb:hover {
+      background: var(--primary-dark);
+      transform: scale(1.1);
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      padding: 12px;
+      border: 2px solid var(--primary);
+      border-radius: var(--radius);
+      background-color: var(--paper);
+      font-family: 'Libre Baskerville', Georgia, serif;
+      color: var(--text);
+      resize: vertical;
+      transition: var(--transition);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--primary-light);
+      box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 15px;
+      background-color: var(--primary);
+      color: var(--paper);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-family: 'Libre Baskerville', Georgia, serif;
+      font-weight: 700;
+      text-align: center;
+      transition: var(--transition);
+      box-shadow: 0 2px 4px var(--shadow);
+      font-size: 14px;
+      gap: 8px;
+    }
+
+    .button:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px var(--shadow);
+    }
+
+    .button:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+
+    .full-width {
       width: 100%;
     }
-    .button {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 8px 15px;
-      background-color: #744D26; /* Brown background */
-      color: #EED5AB; /* Beige text */
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-family: 'Times New Roman', Times, serif;
+
+    .playback-main-controls {
+      margin-top: 15px;
     }
-    .button:hover {
-      background-color: #5A3D1E; /* Darker brown on hover */
+
+    .button-content {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    #playbackControls {
+      display: none;
+      margin-top: 12px;
+      gap: 8px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    #playPauseButton {
+      height: 44px;
+      position: relative;
+      overflow: hidden;
+      background-image: linear-gradient(to right, var(--primary), var(--primary-light));
+    }
+
+    #playPauseButton:hover {
+      background-image: linear-gradient(to right, var(--primary-dark), var(--primary));
+    }
+
+    .help-section {
+      margin-top: 20px;
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 15px;
+      background-color: rgba(116, 77, 38, 0.05);
+      box-shadow: 0 2px 4px var(--shadow);
+    }
+
+    .help-title {
+      margin: 0 0 10px 0;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--primary);
+    }
+
+    ol, ul {
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    ul li {
+      margin-bottom: 4px;
+    }
+
+    kbd {
+      background-color: var(--paper);
+      border: 1px solid var(--primary);
+      border-radius: 3px;
+      padding: 2px 5px;
+      font-family: monospace;
+      font-size: 12px;
+      box-shadow: 1px 1px 1px var(--shadow);
     }
   </style>
 </head>
 <body>
-  <div style="display: flex; align-items: center; margin-bottom: 15px;">
-    <img src="../icons/sherlock.svg" alt="Sherlock Icon" style="width: 40px; height: 40px; margin-right: 10px;">
-    <h1 style="margin: 0;">Sherlock TTS Engine</h1>
-  </div>
-  <p>This Sherlock-themed extension provides a custom TTS engine that uses a local API endpoint for speech synthesis.</p>
-
-  <div class="status" id="status">
-    Status: Checking...
-  </div>
-
-  <div class="status" id="modelStatus" style="margin-top: 10px; background-color: #e2e3e5; color: #383d41;">
-    Model Status: Unknown
-  </div>
-
-  <div style="margin-top: 15px;">
-    <label for="textInput" style="display: block; margin-bottom: 5px; font-weight: bold;">Enter or paste text to read:</label>
-    <textarea id="textInput" style="width: 100%; height: 100px; padding: 8px; border: 1px solid #744D26; border-radius: 4px; background-color: #FFF8E7; font-family: 'Times New Roman', Times, serif; color: #744D26; resize: vertical; box-sizing: border-box; margin: 0;"></textarea>
-    <button class="button" id="playTextButton" style="margin-top: 10px; width: 100%; box-sizing: border-box;">Play Text</button>
-
-    <div id="playbackControls" style="display: none; margin-top: 10px; text-align: center;">
-      <button class="button" id="pauseButton" style="width: 32%; margin-right: 1%;">Pause</button>
-      <button class="button" id="resumeButton" style="width: 32%; margin-right: 1%;">Resume</button>
-      <button class="button" id="stopButton" style="width: 32%;">Stop</button>
+  <div class="status-container" id="statusContainer" style="display: none;">
+    <div class="status" id="status">
+      <strong>Error:</strong> <span id="statusMessage">No errors</span>
     </div>
   </div>
 
-  <div style="margin-top: 15px; border: 1px solid #744D26; border-radius: 5px; padding: 10px; background-color: rgba(116, 77, 38, 0.1);">
-    <p style="margin: 0 0 8px 0; font-weight: bold;">How to use:</p>
-    <ol style="margin: 0; padding-left: 20px;">
+  <div class="input-section">
+    <label for="textInput">Enter or paste text to read:</label>
+    <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
+
+    <div class="voice-controls">
+      <label for="voiceSelect">Voice:</label>
+      <select id="voiceSelect" class="select-control">
+        <!-- Will be populated from JavaScript -->
+      </select>
+    </div>
+
+    <div class="slider-controls">
+      <div class="slider-group">
+        <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
+        <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+      </div>
+
+      <div class="slider-group">
+        <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
+        <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
+      </div>
+    </div>
+
+    <div class="playback-main-controls">
+      <button class="button full-width" id="playPauseButton">
+        <div class="button-content">
+          <svg class="play-icon" viewBox="0 0 24 24" width="16" height="16">
+            <path fill="currentColor" d="M8 5v14l11-7z"/>
+          </svg>
+          <span>Play</span>
+        </div>
+        <div class="button-content" style="display: none;">
+          <svg class="pause-icon" viewBox="0 0 24 24" width="16" height="16">
+            <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+          </svg>
+          <span>Pause</span>
+        </div>
+      </button>
+    </div>
+
+    <div id="playbackControls" style="display: none;">
+      <button class="button" id="resumeButton">
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <path fill="currentColor" d="M8 5v14l11-7z"/>
+        </svg>
+        Resume
+      </button>
+      <button class="button" id="stopButton">
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <path fill="currentColor" d="M6 6h12v12H6z"/>
+        </svg>
+        Stop
+      </button>
+    </div>
+  </div>
+
+  <div class="help-section">
+    <p class="help-title">How to use:</p>
+    <ol>
       <li>Enter or paste text in the box above and click "Play Text", or</li>
       <li>Select text on any webpage and either:
-        <ul style="margin: 5px 0;">
-          <li>Right-click on the selected text and choose "Read with Sherlock TTS" from the context menu, or</li>
-          <li>Press <kbd style="background-color: #FFF8E7; border: 1px solid #744D26; border-radius: 3px; padding: 2px 5px; font-family: monospace;">Ctrl+Shift+S</kbd> (<kbd style="background-color: #FFF8E7; border: 1px solid #744D26; border-radius: 3px; padding: 2px 5px; font-family: monospace;">&#8984;+Shift+S</kbd> on Mac)</li>
+        <ul>
+          <li>Right-click on the selected text and choose "Read with Kokori" from the context menu, or</li>
+          <li>Press <kbd>Ctrl+Shift+S</kbd> (<kbd>⌘+Shift+S</kbd> on Mac)</li>
         </ul>
       </li>
     </ol>

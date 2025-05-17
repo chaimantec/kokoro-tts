@@ -11,12 +11,10 @@
     "api:setup": "cd src/api && npm run setup",
     "api:start": "cd src/api && npm start",
     "package-extension": "./package-extension.sh",
-    "test:kokoro": "vite --config vite.test.config.js",
-    "test:kokoro:node": "node test-kokoro-node.js",
-    "test:kokoro:stream": "node test-kokoro-stream.js",
-    "test:kokoro:stream:webgpu": "node test-kokoro-stream.js --webgpu"
+    "test:kokoro": "vite --config vite.test.config.js"
   },
   "dependencies": {
+    "@soundtouchjs/audio-worklet": "^0.2.1",
     "kokoro-js": "^1.2.1",
     "onnxruntime-web": "^1.22.0",
     "webextension-polyfill": "^0.12.0"

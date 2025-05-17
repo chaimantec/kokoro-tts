@@ -1,6 +1,8 @@
 import {
   VOICE_NAME,
-  BackgroundMessage
+  BackgroundMessage,
+  TTSSettings,
+  DEFAULT_SETTINGS
 } from './types';
 
 import browser from "webextension-polyfill";
@@ -9,6 +11,9 @@ import browser from "webextension-polyfill";
 let isSpeaking = false;
 let currentUtterance: string | null = null;
 let currentSendTtsEventId: number | null = null;
+let currentVoice: string | null = null;
+let currentSpeed: number | null = null;
+let currentPitch: number | null = null;
 
 // Listen for messages from popup and offscreen document
 chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
@@ -66,14 +71,22 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
     sendResponse({
       isSpeaking: isSpeaking,
       utterance: currentUtterance,
-      sendTtsEventId: currentSendTtsEventId
+      sendTtsEventId: currentSendTtsEventId,
+      voice: currentVoice,
+      speed: currentSpeed,
+      pitch: currentPitch
     });
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'playTextWithTTS') {
     // Play text with TTS
     (async () => {
       try {
-        await readTextWithCustomTTS(message.text);
+        // Store voice, speed, and pitch settings
+        currentVoice = message.voice || null;
+        currentSpeed = message.speed || null;
+        currentPitch = message.pitch || null;
+
+        await readTextWithCustomTTS(message.text, message.voice, message.speed, message.pitch);
 
         // Set the current state
         isSpeaking = true;
@@ -196,15 +209,6 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       console.log('Kokoro model is ready');
     } else if (message.status === 'error') {
       console.error('Error loading Kokoro model:', message.errorMessage);
-
-      // Show a notification about the error
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/sherlock.svg',
-        title: 'Sherlock TTS Model Error',
-        message: message.errorMessage || 'Unknown error loading TTS model',
-        priority: 2
-      });
     }
   } else if (message.type === 'ttsEvent') {
     // TTS event from offscreen document
@@ -245,15 +249,6 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
             }
           );
         }
-
-        // Show a notification about the error
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/sherlock.svg',
-          title: 'Sherlock TTS Error',
-          message: message.errorMessage || 'Unknown error',
-          priority: 2
-        });
 
         // Reset state
         isSpeaking = false;
@@ -309,18 +304,29 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
   });
 
   try {
+    // Load saved settings
+    const settings = await loadSettings();
+
     // Ensure we have an offscreen document
     await ensureOffscreenDocument();
 
-    // Send message to offscreen document to play audio
+    // Send message to offscreen document to play audio with saved settings
     // Let the offscreen document determine WebGPU availability
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
-      text: utterance
+      text: utterance,
+      voice: settings.voice,
+      speed: settings.speed,
+      pitch: settings.pitch
     });
 
-    console.log('Sent play audio message to offscreen document');
+    // Store the current settings
+    currentVoice = settings.voice;
+    currentSpeed = settings.speed;
+    currentPitch = settings.pitch;
+
+    console.log('Sent play audio message to offscreen document with settings:', settings);
   } catch (error: any) {
     console.error('Error playing audio via offscreen document:', error);
 
@@ -334,6 +340,9 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
     isSpeaking = false;
     currentUtterance = null;
     currentSendTtsEventId = null;
+    currentVoice = null;
+    currentSpeed = null;
+    currentPitch = null;
   }
 
   // Return true to indicate we're handling this utterance
@@ -380,9 +389,44 @@ async function ensureOffscreenDocument(): Promise<void> {
   console.log('Created offscreen document for audio playback');
 }
 
+// Function to load settings from Chrome storage
+async function loadSettings(): Promise<TTSSettings> {
+  try {
+    const result = await chrome.storage.sync.get('ttsSettings');
+    if (result.ttsSettings) {
+      console.log('Settings loaded:', result.ttsSettings);
+      return {
+        voice: result.ttsSettings.voice || DEFAULT_SETTINGS.voice,
+        speed: result.ttsSettings.speed || DEFAULT_SETTINGS.speed,
+        pitch: result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch
+      };
+    }
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
+
+  // Return default settings if none are saved or on error
+  console.log('Using default settings');
+  return { ...DEFAULT_SETTINGS };
+}
+
 // Function to read text using our custom TTS engine via the offscreen document
-async function readTextWithCustomTTS(text: string): Promise<void> {
-  console.log('Reading text with custom TTS:', text);
+async function readTextWithCustomTTS(
+  text: string,
+  voice?: string | null,
+  speed?: number | null,
+  pitch?: number | null
+): Promise<void> {
+  console.log('Reading text with custom TTS:', text, { voice, speed, pitch });
+
+  // If no parameters are provided, load from storage
+  if (voice === undefined && speed === undefined && pitch === undefined) {
+    const settings = await loadSettings();
+    voice = settings.voice;
+    speed = settings.speed;
+    pitch = settings.pitch;
+    console.log('Using saved settings:', { voice, speed, pitch });
+  }
 
   // Stop any currently speaking utterance
   if (isSpeaking) {
@@ -405,6 +449,9 @@ async function readTextWithCustomTTS(text: string): Promise<void> {
   // Set the current state
   isSpeaking = true;
   currentUtterance = text;
+  currentVoice = voice || null;
+  currentSpeed = speed || null;
+  currentPitch = pitch || null;
 
   try {
     // Ensure we have an offscreen document
@@ -415,36 +462,33 @@ async function readTextWithCustomTTS(text: string): Promise<void> {
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
-      text: text
+      text: text,
+      voice: voice || undefined,
+      speed: speed || undefined,
+      pitch: pitch || undefined
     });
 
     console.log('Sent play audio message to offscreen document');
   } catch (error: any) {
     console.error('Error playing audio via offscreen document:', error);
 
-    // Show a notification about the error
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl: 'icons/sherlock.svg',
-      title: 'Sherlock TTS Error',
-      message: `Error playing audio: ${error.message || 'Unknown error'}`,
-      priority: 2
-    });
-
     // Reset state
     isSpeaking = false;
     currentUtterance = null;
+    currentVoice = null;
+    currentSpeed = null;
+    currentPitch = null;
   }
 }
 
 // Register our engine with Chrome's TTS system
 browser.runtime.onInstalled.addListener(async () => {
-  console.log('Sherlock TTS Engine installed');
+  console.log('Kokoro Speak TTS Engine installed');
 
   // Create context menu item for reading selected text
   chrome.contextMenus.create({
     id: "readSelectedText",
-    title: "Read with Sherlock TTS",
+    title: "Read with Kokoro",
     contexts: ["selection"]
   });
 
@@ -519,27 +563,9 @@ chrome.commands.onCommand.addListener(async (command) => {
       if (selectedText) {
         // Read the selected text using our custom TTS engine
         await readTextWithCustomTTS(selectedText);
-      } else {
-        // No text selected, show a notification
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/sherlock.svg',
-          title: 'Sherlock TTS',
-          message: 'Please select text on the page first',
-          priority: 2
-        });
       }
     } catch (error: any) {
       console.error('Error handling keyboard shortcut:', error);
-
-      // Show a notification about the error
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/sherlock.svg',
-        title: 'Sherlock TTS Error',
-        message: `Error: ${error.message || 'Unknown error'}`,
-        priority: 2
-      });
     }
   }
 });

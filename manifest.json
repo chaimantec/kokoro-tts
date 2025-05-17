@@ -8,7 +8,6 @@
     "tts",
     "storage",
     "contextMenus",
-    "notifications",
     "offscreen",
     "commands",
     "scripting",
@@ -45,6 +44,12 @@
       "description": "Read selected text with Kokoro Speak"
     }
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["soundtouch-worklet.js", "onnxruntime-web/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   }
