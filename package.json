@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && node build.js",
+    "build": "npm run clean && tsc && vite build",
     "preview": "vite preview",
     "api:setup": "cd src/api && npm run setup",
     "api:start": "cd src/api && npm start",
@@ -17,13 +17,17 @@
     "test:kokoro:stream:webgpu": "node test-kokoro-stream.js --webgpu"
   },
   "dependencies": {
-    "kokoro-js": "^1.2.1"
+    "kokoro-js": "^1.2.1",
+    "onnxruntime-web": "^1.22.0",
+    "webextension-polyfill": "^0.12.0"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.260",
     "@types/node": "^20.11.24",
+    "@types/webextension-polyfill": "^0.12.3",
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
-    "vite-plugin-static-copy": "^1.0.1"
+    "vite-plugin-static-copy": "^1.0.1",
+    "vite-plugin-web-extension": "^4.4.3"
   }
 }

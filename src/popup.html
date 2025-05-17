@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Sherlock TTS Engine</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 15px;
+      font-family: 'Times New Roman', Times, serif;
+      background-color: #EED5AB; /* Beige background like in the SVG */
+      color: #744D26; /* Brown text color like in the SVG */
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 15px;
+      color: #744D26; /* Brown color like in the SVG */
+    }
+    .status {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      background-color: #FFF8E7;
+      border: 1px solid #744D26; /* Brown border */
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .button {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 15px;
+      background-color: #744D26; /* Brown background */
+      color: #EED5AB; /* Beige text */
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Times New Roman', Times, serif;
+    }
+    .button:hover {
+      background-color: #5A3D1E; /* Darker brown on hover */
+    }
+  </style>
+</head>
+<body>
+  <div style="display: flex; align-items: center; margin-bottom: 15px;">
+    <img src="../icons/sherlock.svg" alt="Sherlock Icon" style="width: 40px; height: 40px; margin-right: 10px;">
+    <h1 style="margin: 0;">Sherlock TTS Engine</h1>
+  </div>
+  <p>This Sherlock-themed extension provides a custom TTS engine that uses a local API endpoint for speech synthesis.</p>
+
+  <div class="status" id="status">
+    Status: Checking...
+  </div>
+
+  <div class="status" id="modelStatus" style="margin-top: 10px; background-color: #e2e3e5; color: #383d41;">
+    Model Status: Unknown
+  </div>
+
+  <div style="margin-top: 15px;">
+    <label for="textInput" style="display: block; margin-bottom: 5px; font-weight: bold;">Enter or paste text to read:</label>
+    <textarea id="textInput" style="width: 100%; height: 100px; padding: 8px; border: 1px solid #744D26; border-radius: 4px; background-color: #FFF8E7; font-family: 'Times New Roman', Times, serif; color: #744D26; resize: vertical; box-sizing: border-box; margin: 0;"></textarea>
+    <button class="button" id="playTextButton" style="margin-top: 10px; width: 100%; box-sizing: border-box;">Play Text</button>
+  </div>
+
+  <div style="margin-top: 15px; border: 1px solid #744D26; border-radius: 5px; padding: 10px; background-color: rgba(116, 77, 38, 0.1);">
+    <p style="margin: 0 0 8px 0; font-weight: bold;">How to use:</p>
+    <ol style="margin: 0; padding-left: 20px;">
+      <li>Enter or paste text in the box above and click "Play Text", or</li>
+      <li>Select text on any webpage and either:
+        <ul style="margin: 5px 0;">
+          <li>Right-click on the selected text and choose "Read with Sherlock TTS" from the context menu, or</li>
+          <li>Press <kbd style="background-color: #FFF8E7; border: 1px solid #744D26; border-radius: 3px; padding: 2px 5px; font-family: monospace;">Ctrl+Shift+S</kbd> (<kbd style="background-color: #FFF8E7; border: 1px solid #744D26; border-radius: 3px; padding: 2px 5px; font-family: monospace;">&#8984;+Shift+S</kbd> on Mac)</li>
+        </ul>
+      </li>
+    </ol>
+  </div>
+
+  <script src="popup.ts" type="module"></script>
+</body>
+</html>
