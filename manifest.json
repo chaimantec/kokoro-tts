@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Sherlock TTS Engine",
-  "version": "1.0",
-  "description": "A Sherlock-themed TTS engine that uses a local API endpoint for speech synthesis",
+  "name": "Kokoro Speak",
+  "version": "1.0.0",
+  "description": "In-browser Kokoro TTS Engine",
   "permissions": [
     "ttsEngine",
     "tts",
@@ -14,13 +14,10 @@
     "scripting",
     "activeTab"
   ],
-  "host_permissions": [
-    "https://localhost:3000/*"
-  ],
   "tts_engine": {
     "voices": [
       {
-        "voice_name": "Sherlock TTS",
+        "voice_name": "Kokoro Speak",
         "lang": "en-US",
         "event_types": ["start", "end", "error"]
       }
@@ -33,11 +30,11 @@
   "action": {
     "default_popup": "src/popup.html",
     "default_icon": {
-      "128": "icons/sherlock.svg"
+      "128": "icons/icon128.png"
     }
   },
   "icons": {
-    "128": "icons/sherlock.svg"
+    "128": "icons/icon128.png"
   },
   "commands": {
     "read-selected-text": {
@@ -45,7 +42,7 @@
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Read selected text with Sherlock TTS"
+      "description": "Read selected text with Kokoro Speak"
     }
   },
   "content_security_policy": {
