@@ -4,10 +4,20 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc && node build.js",
+    "preview": "vite preview",
     "api:setup": "cd src/api && npm run setup",
     "api:start": "cd src/api && npm start",
     "package-extension": "./package-extension.sh"
   },
   "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-static-copy": "^1.0.1"
+  }
 }

@@ -1,11 +1,10 @@
-// Define our voice properties (should match background.js)
-const VOICE_NAME = 'Sherlock TTS';
+import { VOICE_NAME, PlaybackInfoResponse } from './types';
 
 // Global variable to track the active audio element
-let activeAudio = null;
+let activeAudio: HTMLAudioElement | null = null;
 
 // Function to play audio from the API
-function playAudioFromApi(text, sendTtsEventId) {
+function playAudioFromApi(text: string, sendTtsEventId?: number): HTMLAudioElement {
   // Stop any currently playing audio
   if (activeAudio) {
     activeAudio.pause();
@@ -42,7 +41,7 @@ function playAudioFromApi(text, sendTtsEventId) {
     // Send a message to the background script
     chrome.runtime.sendMessage({
       type: 'speechError',
-      errorMessage: `Error playing audio: ${error.message || 'Unknown error'}`,
+      errorMessage: `Error playing audio: ${error instanceof Event ? 'Unknown error' : 'Error playing audio'}`,
       sendTtsEventId: sendTtsEventId
     });
 
@@ -73,7 +72,7 @@ function playAudioFromApi(text, sendTtsEventId) {
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
   console.log('Popup received message:', message);
 
   if (message.type === 'stopSpeech') {
@@ -94,14 +93,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
-  const statusElement = document.getElementById('status');
-  const textInput = document.getElementById('textInput');
-  const playTextButton = document.getElementById('playTextButton');
+  const statusElement = document.getElementById('status') as HTMLDivElement;
+  const textInput = document.getElementById('textInput') as HTMLTextAreaElement;
+  const playTextButton = document.getElementById('playTextButton') as HTMLButtonElement;
 
   console.log('Sherlock TTS Engine popup opened');
 
   // Check if there's an active speech request from the background script
-  chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response) => {
+  chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
     if (response && response.isSpeaking && response.utterance) {
       console.log('Found active speech request:', response);
 
@@ -111,7 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
       statusElement.style.color = '#744D26';
 
       // Play the audio
-      playAudioFromApi(response.utterance, response.sendTtsEventId);
+      playAudioFromApi(response.utterance, response.sendTtsEventId || undefined);
     }
   });
 

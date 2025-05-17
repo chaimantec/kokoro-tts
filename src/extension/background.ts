@@ -1,14 +1,15 @@
+import {
+  VOICE_NAME,
+  BackgroundMessage
+} from './types';
+
 // Global variables to track state
 let isSpeaking = false;
-let currentUtterance = null;
-let currentSendTtsEventId = null;
-
-// Define our voice properties
-const VOICE_NAME = 'Sherlock TTS';
-const VOICE_LANG = 'en-US';
+let currentUtterance: string | null = null;
+let currentSendTtsEventId: number | null = null;
 
 // Listen for messages from popup and offscreen document
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
   console.log('Background script received message:', message);
 
   if (message.type === 'speechEnded') {
@@ -135,7 +136,7 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
   // Set the current state
   isSpeaking = true;
   currentUtterance = utterance;
-  currentSendTtsEventId = sendTtsEvent.id;
+  currentSendTtsEventId = (sendTtsEvent as any).id;
 
   // Send start event immediately
   sendTtsEvent({
@@ -156,7 +157,7 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
     });
 
     console.log('Sent play audio message to offscreen document');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error playing audio via offscreen document:', error);
 
     // Send error event
@@ -199,7 +200,7 @@ chrome.ttsEngine.onStop.addListener(async () => {
 });
 
 // Function to ensure the offscreen document exists
-async function ensureOffscreenDocument() {
+async function ensureOffscreenDocument(): Promise<void> {
   // Check if we already have an offscreen document
   if (await chrome.offscreen.hasDocument()) {
     return;
@@ -208,7 +209,7 @@ async function ensureOffscreenDocument() {
   // Create an offscreen document
   await chrome.offscreen.createDocument({
     url: 'offscreen.html',
-    reasons: ['AUDIO_PLAYBACK'],
+    reasons: ['AUDIO_PLAYBACK' as any],
     justification: 'Playing TTS audio'
   });
 
@@ -216,7 +217,7 @@ async function ensureOffscreenDocument() {
 }
 
 // Function to read text using our custom TTS engine via the offscreen document
-async function readTextWithCustomTTS(text) {
+async function readTextWithCustomTTS(text: string): Promise<void> {
   console.log('Reading text with custom TTS:', text);
 
   // Stop any currently speaking utterance
@@ -253,7 +254,7 @@ async function readTextWithCustomTTS(text) {
     });
 
     console.log('Sent play audio message to offscreen document');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error playing audio via offscreen document:', error);
 
     // Show a notification about the error
@@ -326,11 +327,11 @@ chrome.commands.onCommand.addListener(async (command) => {
 
       // Execute a script to get the selected text
       const results = await chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        function: () => window.getSelection().toString()
+        target: { tabId: tabs[0].id! },
+        func: () => window.getSelection()?.toString() || ''
       });
 
-      const selectedText = results[0].result;
+      const selectedText = results[0].result as string;
       console.log('Selected text:', selectedText);
 
       if (selectedText) {
@@ -346,7 +347,7 @@ chrome.commands.onCommand.addListener(async (command) => {
           priority: 2
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error handling keyboard shortcut:', error);
 
       // Show a notification about the error
