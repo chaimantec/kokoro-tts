@@ -22,6 +22,8 @@ let isModelLoading = false;
 let audioContext: AudioContext | null = null;
 let audioQueue: any[] = [];
 let isPlaying = false;
+let isPaused = false;
+let currentAudioSource: AudioBufferSourceNode | null = null;
 
 // Log function
 function log(message: string): void {
@@ -120,7 +122,7 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
 
 // Function to play audio chunks from the queue
 async function playNextInQueue(): Promise<void> {
-  if (audioQueue.length === 0 || isPlaying) {
+  if (audioQueue.length === 0 || isPlaying || isPaused) {
     return;
   }
 
@@ -148,10 +150,14 @@ async function playNextInQueue(): Promise<void> {
     source.buffer = buffer;
     source.connect(audioContext.destination);
 
+    // Store the current audio source for pause/resume functionality
+    currentAudioSource = source;
+
     // When this chunk ends, play the next one
     source.onended = () => {
       log('Chunk playback completed');
       isPlaying = false;
+      currentAudioSource = null;
       playNextInQueue();
     };
 
@@ -160,7 +166,57 @@ async function playNextInQueue(): Promise<void> {
   } catch (error: any) {
     log('Error playing audio chunk: ' + error.message);
     isPlaying = false;
+    currentAudioSource = null;
     playNextInQueue(); // Try the next chunk
+  }
+}
+
+// Function to pause audio playback
+function pauseAudio(): void {
+  log('Pausing audio playback');
+
+  // If using HTML Audio element
+  if (activeAudio) {
+    activeAudio.pause();
+  }
+
+  // If using Web Audio API
+  if (audioContext && isPlaying) {
+    // We can't actually pause a buffer source node, so we need to stop it
+    // and recreate it when resuming. For now, we'll just set the isPaused flag
+    // and stop adding new chunks to the queue.
+    isPaused = true;
+
+    if (currentAudioSource) {
+      try {
+        currentAudioSource.stop();
+        currentAudioSource = null;
+      } catch (error) {
+        log('Error stopping audio source: ' + error);
+      }
+    }
+
+    isPlaying = false;
+  }
+}
+
+// Function to resume audio playback
+function resumeAudio(): void {
+  log('Resuming audio playback');
+
+  // If using HTML Audio element
+  if (activeAudio) {
+    activeAudio.play().catch(error => {
+      log('Error resuming audio: ' + error);
+    });
+  }
+
+  // If using Web Audio API
+  if (audioContext && isPaused) {
+    isPaused = false;
+
+    // Start playing the next chunk in the queue
+    playNextInQueue();
   }
 }
 
@@ -177,6 +233,7 @@ async function playAudioWithKokoro(text: string, useWebGPU: boolean = false): Pr
   // Clear any existing audio queue
   audioQueue = [];
   isPlaying = false;
+  isPaused = false;
 
   // Make sure the model is initialized
   if (!kokoroModel) {
@@ -406,6 +463,16 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
 
       // Return true to indicate we will send a response asynchronously
       return true;
+    } else if (message.type === 'pauseAudio') {
+      // Pause audio playback
+      pauseAudio();
+      sendResponse({ success: true });
+      return true;
+    } else if (message.type === 'resumeAudio') {
+      // Resume audio playback
+      resumeAudio();
+      sendResponse({ success: true });
+      return true;
     } else if (message.type === 'stopAudio') {
       // Stop any currently playing audio
       if (activeAudio) {
@@ -416,8 +483,20 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       // Clear the audio queue and reset playing state
       audioQueue = [];
       isPlaying = false;
+      isPaused = false;
+
+      // Stop any current audio source
+      if (currentAudioSource) {
+        try {
+          currentAudioSource.stop();
+          currentAudioSource = null;
+        } catch (error) {
+          log('Error stopping audio source: ' + error);
+        }
+      }
 
       sendResponse({ success: true });
+      return true;
     }
   }
 

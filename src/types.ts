@@ -19,6 +19,29 @@ export interface GetPlaybackInfoMessage {
   type: 'getPlaybackInfo';
 }
 
+export interface PlayTextWithTTSMessage {
+  type: 'playTextWithTTS';
+  text: string;
+  sendTtsEventId?: number;
+}
+
+export interface PausePlaybackMessage {
+  type: 'pausePlayback';
+}
+
+export interface ResumePlaybackMessage {
+  type: 'resumePlayback';
+}
+
+export interface StopPlaybackMessage {
+  type: 'stopPlayback';
+}
+
+export interface PlaybackStatusMessage {
+  type: 'playbackStatus';
+  state: 'idle' | 'playing' | 'paused';
+}
+
 export interface TtsEventMessage {
   type: 'ttsEvent';
   eventType: 'start' | 'end' | 'error';
@@ -30,6 +53,16 @@ export interface PlayAudioMessage {
   target: 'offscreen';
   type: 'playAudio';
   text: string;
+}
+
+export interface PauseAudioMessage {
+  target: 'offscreen';
+  type: 'pauseAudio';
+}
+
+export interface ResumeAudioMessage {
+  target: 'offscreen';
+  type: 'resumeAudio';
 }
 
 export interface StopAudioMessage {
@@ -52,10 +85,19 @@ export type BackgroundMessage =
   | SpeechEndedMessage
   | SpeechErrorMessage
   | GetPlaybackInfoMessage
+  | PlayTextWithTTSMessage
+  | PausePlaybackMessage
+  | ResumePlaybackMessage
+  | StopPlaybackMessage
   | TtsEventMessage
   | ModelStatusMessage;
 
-export type OffscreenMessage = PlayAudioMessage | StopAudioMessage | InitModelMessage;
+export type OffscreenMessage =
+  | PlayAudioMessage
+  | PauseAudioMessage
+  | ResumeAudioMessage
+  | StopAudioMessage
+  | InitModelMessage;
 
 // Response types
 export interface PlaybackInfoResponse {

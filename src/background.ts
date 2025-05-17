@@ -29,6 +29,12 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       isSpeaking = false;
       currentUtterance = null;
       currentSendTtsEventId = null;
+
+      // Notify popup about playback status change
+      chrome.runtime.sendMessage({
+        type: 'playbackStatus',
+        state: 'idle'
+      });
     }
   } else if (message.type === 'speechError') {
     // Speech error in the popup
@@ -48,6 +54,12 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       isSpeaking = false;
       currentUtterance = null;
       currentSendTtsEventId = null;
+
+      // Notify popup about playback status change
+      chrome.runtime.sendMessage({
+        type: 'playbackStatus',
+        state: 'idle'
+      });
     }
   } else if (message.type === 'getPlaybackInfo') {
     // Popup is requesting playback info
@@ -56,6 +68,125 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       utterance: currentUtterance,
       sendTtsEventId: currentSendTtsEventId
     });
+    return true; // Keep the message channel open for async responses
+  } else if (message.type === 'playTextWithTTS') {
+    // Play text with TTS
+    (async () => {
+      try {
+        await readTextWithCustomTTS(message.text);
+
+        // Set the current state
+        isSpeaking = true;
+        currentUtterance = message.text;
+        currentSendTtsEventId = message.sendTtsEventId || null;
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'playing'
+        });
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error playing text with TTS:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
+  } else if (message.type === 'pausePlayback') {
+    // Pause playback
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send message to offscreen document to pause audio
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'pauseAudio'
+        });
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'paused'
+        });
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error pausing playback:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
+  } else if (message.type === 'resumePlayback') {
+    // Resume playback
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send message to offscreen document to resume audio
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'resumeAudio'
+        });
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'playing'
+        });
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error resuming playback:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
+  } else if (message.type === 'stopPlayback') {
+    // Stop playback
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send message to offscreen document to stop audio
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'stopAudio'
+        });
+
+        // Reset state
+        isSpeaking = false;
+        currentUtterance = null;
+        currentSendTtsEventId = null;
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'idle'
+        });
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error stopping playback:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    })();
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'modelStatus') {
     // Model status update from offscreen document
@@ -94,6 +225,12 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
         isSpeaking = false;
         currentUtterance = null;
         currentSendTtsEventId = null;
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'idle'
+        });
       }
     } else if (message.eventType === 'error') {
       // Speech error
@@ -122,6 +259,12 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
         isSpeaking = false;
         currentUtterance = null;
         currentSendTtsEventId = null;
+
+        // Notify popup about playback status change
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'idle'
+        });
       }
     }
   }
