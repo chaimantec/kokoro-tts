@@ -7,7 +7,7 @@ export const AVAILABLE_VOICES = [
   { id: 'af_alloy', name: 'Alloy (Female)' },
   { id: 'af_aoede', name: 'Aoede (Female)' },
   { id: 'af_bella', name: 'Bella (Female) ❤️' },
-  { id: 'af_jessica', name: 'Jessica (Female)' }, 
+  { id: 'af_jessica', name: 'Jessica (Female)' },
   { id: 'af_kore', name: 'Kore (Female)' },
   { id: 'af_nicole', name: 'Nicole (Female) ❤️' },
   { id: 'af_nova', name: 'Nova (Female)' },
@@ -17,7 +17,7 @@ export const AVAILABLE_VOICES = [
 
   { id: 'am_adam', name: 'Adam (Male)' },
   { id: 'am_echo', name: 'Echo (Male)' },
-  { id: 'am_eric', name: 'Eric (Male)' },  
+  { id: 'am_eric', name: 'Eric (Male)' },
   { id: 'am_fenrir', name: 'Fenrir (Male)' },
   { id: 'am_liam', name: 'Liam (Male)' },
   { id: 'am_michael', name: 'Michael (Male)' },
@@ -64,6 +64,10 @@ export interface SpeechErrorMessage {
 
 export interface GetPlaybackInfoMessage {
   type: 'getPlaybackInfo';
+}
+
+export interface CheckModelStatusMessage {
+  type: 'checkModelStatus';
 }
 
 export interface PlayTextWithTTSMessage {
@@ -126,31 +130,48 @@ export interface StopAudioMessage {
 export interface InitModelMessage {
   target: 'offscreen';
   type: 'initModel';
+  modelType?: 'webgpu' | 'wasm';
+  download?: boolean;
+}
+
+export interface CheckModelStatusMessage {
+  target: 'offscreen';
+  type: 'checkModelStatus';
 }
 
 export interface ModelStatusMessage {
   type: 'modelStatus';
-  status: 'loading' | 'ready' | 'error';
+  status: 'loading' | 'ready' | 'error' | 'download_required';
   errorMessage?: string;
+  modelType?: 'webgpu' | 'wasm';
+  modelSize?: string;
+}
+
+export interface ModelDownloadMessage {
+  type: 'modelDownload';
+  modelType: 'webgpu' | 'wasm';
 }
 
 export type BackgroundMessage =
   | SpeechEndedMessage
   | SpeechErrorMessage
   | GetPlaybackInfoMessage
+  | CheckModelStatusMessage
   | PlayTextWithTTSMessage
   | PausePlaybackMessage
   | ResumePlaybackMessage
   | StopPlaybackMessage
   | TtsEventMessage
-  | ModelStatusMessage;
+  | ModelStatusMessage
+  | ModelDownloadMessage;
 
 export type OffscreenMessage =
   | PlayAudioMessage
   | PauseAudioMessage
   | ResumeAudioMessage
   | StopAudioMessage
-  | InitModelMessage;
+  | InitModelMessage
+  | CheckModelStatusMessage;
 
 // Response types
 export interface PlaybackInfoResponse {

@@ -75,6 +75,28 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       pitch: currentPitch
     });
     return true; // Keep the message channel open for async responses
+  } else if (message.type === 'checkModelStatus') {
+    // Check model status by sending a message to the offscreen document
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send a message to the offscreen document to check model status
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'checkModelStatus'
+        });
+
+        // The response will be handled by the offscreen document
+        // which will send a modelStatus message back to the popup
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('Error checking model status:', error);
+        sendResponse({ success: false, error });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
   } else if (message.type === 'playTextWithTTS') {
     // Play text with TTS
     (async () => {
@@ -207,7 +229,42 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       console.log('Kokoro model is ready');
     } else if (message.status === 'error') {
       console.error('Error loading Kokoro model:', message.errorMessage);
+    } else if (message.status === 'download_required') {
+      // Forward the download request to the popup if it's open
+      console.log('Model download required:', message);
+      chrome.runtime.sendMessage({
+        type: 'modelStatus',
+        status: 'download_required',
+        modelType: message.modelType,
+        modelSize: message.modelSize
+      });
     }
+  } else if (message.type === 'modelDownload') {
+    // User has requested model download
+    console.log('Received model download request:', message);
+
+    // Forward the download request to the offscreen document
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send message to offscreen document to initialize the model
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'initModel',
+          modelType: message.modelType,
+          download: true
+        });
+
+        console.log('Sent init model message to offscreen document');
+        sendResponse({ success: true });
+      } catch (error) {
+        console.error('Error initializing Kokoro model:', error);
+        sendResponse({ success: false, error });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
   } else if (message.type === 'ttsEvent') {
     // TTS event from offscreen document
     console.log('Received TTS event from offscreen document:', message);

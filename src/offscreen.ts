@@ -29,6 +29,34 @@ let currentBuffer: AudioBuffer | null = null;
 // Keep-alive mechanism
 let keepAliveInterval: number | null = null;
 
+// Model cache keys
+const WEBGPU_MODEL_CACHE_KEY = 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model.onnx';
+const WASM_MODEL_CACHE_KEY = 'https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/onnx/model_quantized.onnx';
+const CACHE_NAME = 'transformers-cache';
+
+// Function to check if a model is already in cache
+async function isModelInCache(modelType: 'webgpu' | 'wasm'): Promise<boolean> {
+  try {
+    const cacheKey = modelType === 'webgpu' ? WEBGPU_MODEL_CACHE_KEY : WASM_MODEL_CACHE_KEY;
+
+    // Check if the Cache API is available
+    if ('caches' in window) {
+      console.log('looking for model in cache', CACHE_NAME, cacheKey);
+      const cache = await caches.open(CACHE_NAME);
+      console.log('cache', cache);
+      cache.keys().then(keys => console.log('cache keys', keys));
+      const response = await cache.match(cacheKey);
+      console.log('found model in cache?', !!response);
+      return !!response;
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`Error checking cache for ${modelType} model:`, error);
+    return false;
+  }
+}
+
 // Initialize the audio context
 function initAudioContext(): void {
   if (!audioContext) {
@@ -47,7 +75,7 @@ function initAudioContext(): void {
 }
 
 // Function to initialize the Kokoro model
-async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
+async function initKokoroModel(useWebGPU: boolean = false, download: boolean = false): Promise<void> {
   if (kokoroModel || isModelLoading) {
     console.log('Model already loaded or loading');
     return;
@@ -56,7 +84,19 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
   isModelLoading = true;
 
   try {
-    // Send status update
+    const modelType = useWebGPU ? 'webgpu' : 'wasm';
+    if (!download && !await isModelInCache(modelType)) {
+      chrome.runtime.sendMessage({
+        type: 'modelStatus',
+        status: 'download_required',
+        modelType: modelType,
+        modelSize: modelType === 'webgpu' ? '326MB' : '92.4MB'
+      });
+
+      throw new Error('Model not loaded. Download required.');
+    }
+
+    // Send loading status update
     chrome.runtime.sendMessage({
       type: 'modelStatus',
       status: 'loading'
@@ -79,7 +119,7 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
         console.error(`WebGPU initialization failed: ${gpuError.message}`);
       }
     }
-    
+
     if (!kokoroModel) {
       // Initialize Kokoro with default backend
       console.log('Loading model with default backend...');
@@ -370,7 +410,7 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
       const useWebGPU = isWebGPUAvailable();
 
       // Initialize the model
-      initKokoroModel(useWebGPU)
+      initKokoroModel(useWebGPU, !!message.download)
         .then(() => {
           sendResponse({ success: true });
         })
@@ -384,7 +424,29 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
       // Check WebGPU availability in the offscreen document
       if (!kokoroModel) {
         try {
-          await initKokoroModel(isWebGPUAvailable());
+          // We need to initialize the model first, but we'll need consent
+          // if the model isn't already cached
+          const useWebGPU = isWebGPUAvailable();
+          const modelType = useWebGPU ? 'webgpu' : 'wasm';
+          const modelCached = await isModelInCache(modelType);
+
+          if (!modelCached) {
+            // We need to download the model
+            chrome.runtime.sendMessage({
+              type: 'modelStatus',
+              status: 'download_required',
+              modelType: modelType,
+              modelSize: modelType === 'webgpu' ? '326MB' : '92.4MB'
+            });
+
+            sendResponse({
+              success: false,
+              error: 'Model not loaded. Download required.'
+            });
+            return true;
+          }
+
+          await initKokoroModel(useWebGPU, false);
         } catch (error: any) {
           console.error('Error initializing model: ' + error.message);
           sendResponse({ success: false, error: error.message });
@@ -403,7 +465,7 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
         .catch((error) => {
           sendResponse({ success: false, error: error.message });
         });
-        
+
       // Return true to indicate we will send a response asynchronously
       return true;
     } else if (message.type === 'pauseAudio') {
@@ -415,6 +477,48 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
       // Resume audio playback
       resumeAudio();
       sendResponse({ success: true });
+      return true;
+    } else if (message.type === 'checkModelStatus') {
+      // Check model status and send back to popup
+      console.log('Checking model status');
+
+      try {
+        // Determine which model type we'll be using
+        const useWebGPU = isWebGPUAvailable();
+        const modelType = useWebGPU ? 'webgpu' : 'wasm';
+        const modelSize = modelType === 'webgpu' ? '326MB' : '92.4MB';
+
+        // Check if model is already in cache
+        const modelCached = await isModelInCache(modelType);
+
+        if (kokoroModel) {
+          // Model is already loaded
+          chrome.runtime.sendMessage({
+            type: 'modelStatus',
+            status: 'ready'
+          });
+        } else if (!modelCached) {
+          // Model is not in cache, need download
+          chrome.runtime.sendMessage({
+            type: 'modelStatus',
+            status: 'download_required',
+            modelType: modelType,
+            modelSize: modelSize
+          });
+        } else {
+          // Model is in cache but not loaded
+          chrome.runtime.sendMessage({
+            type: 'modelStatus',
+            status: 'ready'
+          });
+        }
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error checking model status:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+
       return true;
     } else if (message.type === 'stopAudio') {
       // Immediately stop all audio playback
@@ -515,7 +619,7 @@ function startKeepAlive(): void {
 }
 
 // Log when the offscreen document is loaded
-console.log('Kokori Speak TTS offscreen document loaded');
+console.log('Kokoro Speak TTS offscreen document loaded');
 
 // Start the keep-alive mechanism immediately
 startKeepAlive();

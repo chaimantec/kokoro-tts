@@ -117,12 +117,14 @@ function updatePlaybackControls(): void {
 // Variable to track the current error timeout
 let errorTimeoutId: number | null = null;
 
-// Helper function to show error status
-function showErrorStatus(message: string): void {
+// Helper function to show status message
+function showStatus(message: string, type: 'error' | 'loading' = 'error', autoHide: boolean = true): void {
   const statusContainer = document.getElementById('statusContainer') as HTMLDivElement;
+  const statusElement = document.getElementById('status') as HTMLDivElement;
+  const statusType = document.getElementById('statusType') as HTMLElement;
   const statusMessage = document.getElementById('statusMessage') as HTMLSpanElement;
 
-  if (statusContainer && statusMessage) {
+  if (statusContainer && statusMessage && statusElement && statusType) {
     // Clear any existing timeout
     if (errorTimeoutId !== null) {
       window.clearTimeout(errorTimeoutId);
@@ -135,22 +137,38 @@ function showErrorStatus(message: string): void {
     void statusContainer.offsetWidth;
     statusContainer.style.animation = 'fadeIn 0.3s ease-in-out';
 
+    // Update status type
+    if (type === 'error') {
+      statusElement.className = 'status error';
+      statusType.textContent = 'Error:';
+    } else if (type === 'loading') {
+      statusElement.className = 'status loading';
+      statusType.textContent = 'Status:';
+    }
+
     // Update message and show container
     statusMessage.textContent = message;
     statusContainer.style.display = 'block';
 
-    // Set timeout to hide the error after 3 seconds
-    errorTimeoutId = window.setTimeout(() => {
-      // Apply fadeOut animation
-      statusContainer.style.animation = 'fadeOut 0.3s ease-in-out';
+    // Set timeout to hide the status after 3 seconds if autoHide is true
+    if (autoHide) {
+      errorTimeoutId = window.setTimeout(() => {
+        // Apply fadeOut animation
+        statusContainer.style.animation = 'fadeOut 0.3s ease-in-out';
 
-      // Hide after animation completes
-      window.setTimeout(() => {
-        statusContainer.style.display = 'none';
-        errorTimeoutId = null;
-      }, 300);
-    }, 3000);
+        // Hide after animation completes
+        window.setTimeout(() => {
+          statusContainer.style.display = 'none';
+          errorTimeoutId = null;
+        }, 300);
+      }, 3000);
+    }
   }
+}
+
+// Helper function to show error status (for backward compatibility)
+function showErrorStatus(message: string): void {
+  showStatus(message, 'error', true);
 }
 
 // Helper function to hide status
@@ -167,9 +185,77 @@ function hideStatus(): void {
   }
 }
 
+// Function to initiate model download
+function initiateModelDownload(modelType: 'webgpu' | 'wasm', modelSize: string): void {
+  // Hide any existing error messages
+  hideStatus();
+
+  // Send download request to background script
+  chrome.runtime.sendMessage({
+    type: 'modelDownload',
+    modelType: modelType
+  });
+
+  // Show loading message with loading style and no auto-hide
+  showStatus(`Downloading ${modelSize} model. Please wait...`, 'loading', false);
+}
+
 // Global variable to track model status
-let modelStatus: 'loading' | 'ready' | 'error' | 'unknown' = 'unknown';
+let modelStatus: 'loading' | 'ready' | 'error' | 'unknown' | 'download_required' = 'unknown';
 let modelErrorMessage: string | null = null;
+let modelDownloadType: 'webgpu' | 'wasm' | null = null;
+let modelDownloadSize: string | null = null;
+
+// Function to show the model download message
+function showModelDownloadMessage(modelType: 'webgpu' | 'wasm', modelSize: string): void {
+  const modelDownloadMessage = document.getElementById('modelDownloadMessage') as HTMLDivElement;
+  const modelDownloadText = document.getElementById('modelDownloadText') as HTMLParagraphElement;
+
+  if (modelDownloadMessage && modelDownloadText) {
+    // Update the message text with model type and size
+    modelDownloadText.textContent = `A ${modelSize} ${modelType.toUpperCase()} model needs to be downloaded to enable voice functionality.`;
+
+    // Store the model type and size for later use
+    modelDownloadType = modelType;
+    modelDownloadSize = modelSize;
+
+    // Show the message
+    modelDownloadMessage.style.display = 'block';
+  }
+}
+
+// Function to hide the model download message
+function hideModelDownloadMessage(): void {
+  const modelDownloadMessage = document.getElementById('modelDownloadMessage') as HTMLDivElement;
+
+  if (modelDownloadMessage) {
+    modelDownloadMessage.style.display = 'none';
+  }
+}
+
+// Function to check model status
+async function checkModelStatus(): Promise<void> {
+  try {
+    // Send a message to the background script to check model status
+    chrome.runtime.sendMessage({
+      type: 'checkModelStatus'
+    }, (response) => {
+      if (response && response.modelStatus) {
+        modelStatus = response.modelStatus;
+
+        if (response.modelStatus === 'ready') {
+          // Model is ready, hide the download message
+          hideModelDownloadMessage();
+        } else if (response.modelStatus === 'download_required' && response.modelType && response.modelSize) {
+          // Model needs to be downloaded, show the download message
+          showModelDownloadMessage(response.modelType, response.modelSize);
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error checking model status:', error);
+  }
+}
 
 // Function to pause playback
 function pausePlayback(): void {
@@ -242,6 +328,16 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     if (modelStatus === 'error' && modelErrorMessage) {
       showErrorStatus(`Model error: ${modelErrorMessage}`);
     }
+    // Show persistent download message if download is required
+    else if (modelStatus === 'download_required' && message.modelType && message.modelSize) {
+      console.log('Model download required:', message);
+      showModelDownloadMessage(message.modelType, message.modelSize);
+    }
+    // Hide the download message and loading status if the model is ready
+    else if (modelStatus === 'ready') {
+      hideModelDownloadMessage();
+      hideStatus();
+    }
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
@@ -293,10 +389,10 @@ async function getSelectedTextFromActiveTab(): Promise<string> {
     }
 
     const tab = tabs[0];
-    const isInjectable = tab.url && 
-      (tab.url.startsWith('http:') || 
-      tab.url.startsWith('https:') || 
-      tab.url.startsWith('file:')) && 
+    const isInjectable = tab.url &&
+      (tab.url.startsWith('http:') ||
+      tab.url.startsWith('https:') ||
+      tab.url.startsWith('file:')) &&
       tab.status === 'complete';
 
     if (!isInjectable) {
@@ -330,8 +426,9 @@ document.addEventListener('DOMContentLoaded', function() {
   const resumeButton = document.getElementById('resumeButton') as HTMLButtonElement;
   const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
   const stopButtonAlt = document.getElementById('stopButtonAlt') as HTMLButtonElement;
+  const downloadModelButton = document.getElementById('downloadModelButton') as HTMLButtonElement;
 
-  console.log('Kokori Speak TTS Engine popup opened');
+  console.log('Kokoro Speak TTS Engine popup opened');
 
   // Check for selected text when popup opens
   (async () => {
@@ -493,4 +590,17 @@ document.addEventListener('DOMContentLoaded', function() {
   stopButtonAlt.addEventListener('click', function() {
     stopPlayback();
   });
+
+  // Add event listener for the download model button
+  if (downloadModelButton) {
+    downloadModelButton.addEventListener('click', function() {
+      if (modelDownloadType && modelDownloadSize) {
+        // Initiate model download directly
+        initiateModelDownload(modelDownloadType, modelDownloadSize);
+      }
+    });
+  }
+
+  // Check model status when popup opens
+  checkModelStatus();
 });
