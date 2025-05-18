@@ -260,12 +260,27 @@ async function checkModelStatus(): Promise<void> {
         if (response.modelStatus === 'ready') {
           // Model is ready, hide the download message
           hideModelDownloadMessage();
+          // No need to reset playback state if model is ready
         } else if (response.modelStatus === 'download_required' && response.modelType && response.modelSize) {
           // Model needs to be downloaded, show the download message
           showModelDownloadMessage(response.modelType, response.modelSize);
+
+          // Reset playback state to idle if we were trying to play
+          if (playbackState !== PlaybackState.IDLE) {
+            console.log('Resetting playback state to idle because model needs to be downloaded');
+            playbackState = PlaybackState.IDLE;
+            updatePlaybackControls();
+          }
         } else if (response.modelStatus === 'loading') {
           // Model is loading, show a loading message
           showStatus('Loading Kokoro model. Please wait...', 'loading', false);
+
+          // Reset playback state to idle if we were trying to play
+          if (playbackState !== PlaybackState.IDLE) {
+            console.log('Resetting playback state to idle because model is loading');
+            playbackState = PlaybackState.IDLE;
+            updatePlaybackControls();
+          }
         }
       } else {
         console.log('No model status in response:', response);
@@ -275,6 +290,13 @@ async function checkModelStatus(): Promise<void> {
     console.error('Error checking model status:', error);
     // Set model status to error in case of exception
     modelStatus = 'error';
+
+    // Reset playback state to idle on error
+    if (playbackState !== PlaybackState.IDLE) {
+      console.log('Resetting playback state to idle due to model status error');
+      playbackState = PlaybackState.IDLE;
+      updatePlaybackControls();
+    }
   }
 }
 
@@ -375,11 +397,12 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     sendResponse({ received: true });
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'playbackStatus') {
+    console.log('Received playback status update:', message.state, 'Current model status:', modelStatus);
+
     // Only update playback status if the model is ready
     if (modelStatus === 'ready') {
       // Update playback status
       playbackState = message.state as PlaybackState;
-      console.log('Received playback status update:', playbackState);
 
       // Update UI based on playback state
       if (playbackState === PlaybackState.PLAYING) {
@@ -471,6 +494,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
   console.log('Kokoro Speak TTS Engine popup opened');
 
+  // First load saved settings, then check if there's active playback (which will override settings)
+  loadSettings().then(() => {
+    // Update UI with loaded settings
+    voiceSelect.value = currentVoice;
+    speedSlider.value = currentSpeed.toString();
+    speedValue.textContent = currentSpeed.toFixed(1);
+    pitchSlider.value = currentPitch.toString();
+    pitchValue.textContent = currentPitch.toFixed(1);
+
+    // Now check if there is text playing when popup opens (this will override settings if needed)
+    chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
+      if (response) {
+        console.log('Current playback info:', response);
+
+        // Update voice, speed, and pitch if available (regardless of model status)
+        if (response.voice) {
+          currentVoice = response.voice;
+          voiceSelect.value = currentVoice;
+        }
+
+        if (response.speed) {
+          currentSpeed = response.speed;
+          speedSlider.value = currentSpeed.toString();
+          speedValue.textContent = currentSpeed.toFixed(1);
+        }
+
+        if (response.pitch) {
+          currentPitch = response.pitch;
+          pitchSlider.value = currentPitch.toString();
+          pitchValue.textContent = currentPitch.toFixed(1);
+        }
+
+        // Update playback state based on whether speech is active
+        if (response.isSpeaking) {
+          console.log('Found active speech when popup opened');
+          // Set playback state to PLAYING (we'll check model status later)
+          playbackState = PlaybackState.PLAYING;
+        }
+
+        // Update the UI controls based on current state
+        updatePlaybackControls();
+
+        // If model isn't ready but we're trying to play, we'll reset this when checking model status
+      }
+    });
+  });
+
   // Check for selected text when popup opens
   (async () => {
     try {
@@ -506,16 +576,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set default voice
   voiceSelect.value = currentVoice;
 
-  // Load saved settings
-  loadSettings().then(() => {
-    // Update UI with loaded settings
-    voiceSelect.value = currentVoice;
-    speedSlider.value = currentSpeed.toString();
-    speedValue.textContent = currentSpeed.toFixed(1);
-    pitchSlider.value = currentPitch.toString();
-    pitchValue.textContent = currentPitch.toFixed(1);
-  });
-
   // Add event listeners for voice, speed, and pitch controls
   voiceSelect.addEventListener('change', function() {
     currentVoice = this.value;
@@ -544,45 +604,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialize playback controls state
   updatePlaybackControls();
-
-  // Check if there's an active speech request from the background script
-  chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
-    if (response && response.isSpeaking && response.utterance) {
-      console.log('Found active speech request:', response);
-
-      // Update voice, speed, and pitch if available (these should be updated regardless of model status)
-      if (response.voice) {
-        currentVoice = response.voice;
-        voiceSelect.value = currentVoice;
-      }
-
-      if (response.speed) {
-        currentSpeed = response.speed;
-        speedSlider.value = currentSpeed.toString();
-        speedValue.textContent = currentSpeed.toFixed(1);
-      }
-
-      if (response.pitch) {
-        currentPitch = response.pitch;
-        pitchSlider.value = currentPitch.toString();
-        pitchValue.textContent = currentPitch.toFixed(1);
-      }
-
-      // Only update playback state and controls if the model is ready
-      if (modelStatus === 'ready') {
-        // Update state
-        playbackState = PlaybackState.PLAYING;
-
-        // Update playback controls
-        updatePlaybackControls();
-      } else {
-        console.log('Not updating playback controls because model is not ready. Model status:', modelStatus);
-        // Force playback state to idle if model is not ready
-        playbackState = PlaybackState.IDLE;
-        updatePlaybackControls();
-      }
-    }
-  });
 
   // Add event listener for the play button
   playButton.addEventListener('click', function() {
