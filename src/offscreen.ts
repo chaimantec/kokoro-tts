@@ -21,6 +21,7 @@ let audioQueue: any[] = [];
 let isPlaying = false;
 let isPaused = false;
 let currentAudioSource: AudioBufferSourceNode | null = null;
+let currentPlaybackId: string | null = null; // Unique ID for current playback session
 
 // Variables for audio playback
 let currentChunk: any = null;
@@ -289,6 +290,11 @@ function resumeAudio(): void {
   }
 }
 
+// Helper function to generate a unique ID
+function generatePlaybackId(): string {
+  return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+}
+
 // Function to play audio using Kokoro TTS
 async function playAudioWithKokoro(
   text: string,
@@ -297,6 +303,13 @@ async function playAudioWithKokoro(
   pitch?: number
 ): Promise<void> {
   console.log(`Generating speech for: "${text}" with voice: ${voice || 'default'}, speed: ${speed || 1.0}, pitch: ${pitch || 1.0}`);
+
+  // Generate a new playback ID for this session
+  const playbackId = generatePlaybackId();
+  console.log(`Starting new playback session with ID: ${playbackId}`);
+
+  // Set as current playback ID
+  currentPlaybackId = playbackId;
 
   // Stop any currently playing audio
   if (currentAudioSource) {
@@ -346,6 +359,12 @@ async function playAudioWithKokoro(
 
     // Start streaming generation with voice parameter if provided
     for await (const chunk of kokoroModel.stream(splitter, options)) {
+      // Check if this playback session has been cancelled or replaced
+      if (currentPlaybackId !== playbackId) {
+        console.log(`TTS streaming cancelled - session ${playbackId} is no longer current`);
+        break;
+      }
+
       sentenceCount++;
       console.log(`Received chunk ${sentenceCount}: "${chunk.text}"`);
 
@@ -362,34 +381,46 @@ async function playAudioWithKokoro(
       }
     }
 
-    console.log('Speech generation completed!');
-    console.log(`Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`);
+    // If this playback session is still current, handle completion
+    if (currentPlaybackId === playbackId) {
+      console.log('Speech generation completed!');
+      console.log(`Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`);
 
-    // Wait for all audio to finish playing
-    const checkPlaybackComplete = () => {
-      if (isPlaying || audioQueue.length > 0) {
-        setTimeout(checkPlaybackComplete, 100);
-      } else {
-        // Send end event
-        chrome.runtime.sendMessage({
-          type: 'ttsEvent',
-          eventType: 'end',
-          utterance: text
-        });
-      }
-    };
+      // Wait for all audio to finish playing
+      const checkPlaybackComplete = () => {
+        // Only continue checking if this playback session is still current
+        if (currentPlaybackId !== playbackId) {
+          console.log(`Playback completion check cancelled - session ${playbackId} is no longer current`);
+          return;
+        }
 
-    checkPlaybackComplete();
+        if (isPlaying || audioQueue.length > 0) {
+          setTimeout(checkPlaybackComplete, 100);
+        } else {
+          // Send end event only if this session is still current
+          chrome.runtime.sendMessage({
+            type: 'ttsEvent',
+            eventType: 'end',
+            utterance: text
+          });
+        }
+      };
+
+      checkPlaybackComplete();
+    }
   } catch (error: any) {
-    console.error('Error generating speech: ' + error.message);
+    // Only send error if this playback session is still current
+    if (currentPlaybackId === playbackId) {
+      console.error('Error generating speech: ' + error.message);
 
-    // Send error event
-    chrome.runtime.sendMessage({
-      type: 'ttsEvent',
-      eventType: 'error',
-      utterance: text,
-      errorMessage: `Error generating speech: ${error.message}`
-    });
+      // Send error event
+      chrome.runtime.sendMessage({
+        type: 'ttsEvent',
+        eventType: 'error',
+        utterance: text,
+        errorMessage: `Error generating speech: ${error.message}`
+      });
+    }
   }
 }
 
@@ -523,6 +554,11 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
     } else if (message.type === 'stopAudio') {
       // Immediately stop all audio playback
       console.log('Stopping all audio playback immediately');
+
+      // Invalidate the current playback ID to stop TTS streaming
+      const oldPlaybackId = currentPlaybackId;
+      currentPlaybackId = null;
+      console.log(`Invalidated playback ID: ${oldPlaybackId}`);
 
       // Clear any pending timeouts for chunk playback
       if ((window as any).currentChunkTimeoutId) {
