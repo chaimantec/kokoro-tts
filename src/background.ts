@@ -1,5 +1,4 @@
 import {
-  VOICE_NAME,
   BackgroundMessage,
   TTSSettings,
   DEFAULT_SETTINGS
@@ -609,26 +608,6 @@ chrome.runtime.onInstalled.addListener(async () => {
     contexts: ["selection"],
     enabled: false
   });
-
-  // The voice will be automatically registered by the ttsEngine permission
-  // and the onSpeak listener. We'll log the available voices for debugging.
-  setTimeout(() => {
-    chrome.tts.getVoices((voices) => {
-      console.log('Available TTS voices after installation:', voices);
-
-      // Look for our voice
-      const ourVoice = voices.find(voice =>
-        voice.voiceName === VOICE_NAME ||
-        voice.extensionId === chrome.runtime.id
-      );
-
-      if (ourVoice) {
-        console.log('Our voice is registered:', ourVoice);
-      } else {
-        console.warn('Our voice is not yet registered. This might be normal if Chrome is still initializing the TTS engine.');
-      }
-    });
-  }, 1000); // Give Chrome a moment to register our engine
 
   // Initialize the Kokoro model in the offscreen document
   try {

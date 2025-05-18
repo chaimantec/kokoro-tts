@@ -1,4 +1,4 @@
-import { VOICE_NAME, PlaybackInfoResponse, AVAILABLE_VOICES, TTSSettings, DEFAULT_SETTINGS } from './types';
+import { PlaybackInfoResponse, AVAILABLE_VOICES, TTSSettings, DEFAULT_SETTINGS } from './types';
 
 // Enum for playback state
 enum PlaybackState {
@@ -581,27 +581,6 @@ document.addEventListener('DOMContentLoaded', function() {
         playbackState = PlaybackState.IDLE;
         updatePlaybackControls();
       }
-    }
-  });
-
-  // Check if our TTS engine is registered
-  chrome.tts.getVoices((voices) => {
-    console.log('All available TTS voices:', voices);
-
-    // Try to find our voice with more flexible matching
-    const ourVoice = voices.find(voice => {
-      const match = voice.voiceName === VOICE_NAME ||
-                   voice.extensionId === chrome.runtime.id;
-
-      if (match) {
-        console.log('Found our voice:', voice);
-      }
-
-      return match;
-    });
-
-    if (!ourVoice) {
-      showErrorStatus(`${VOICE_NAME} Engine is not registered yet. Please reload the extension.`);
     }
   });
 

@@ -5,7 +5,6 @@
   "description": "In-browser Kokoro TTS Engine",
   "permissions": [
     "ttsEngine",
-    "tts",
     "storage",
     "contextMenus",
     "offscreen",
