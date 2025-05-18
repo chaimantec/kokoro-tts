@@ -1,5 +1,5 @@
 import { OffscreenMessage } from './types';
-import { KokoroTTS, TextSplitterStream, env } from 'kokoro-js';
+import { KokoroTTS, env, TextSplitterStream } from 'kokoro-js';
 import { PitchShifter } from './audio-processor';
 
 env.wasmPaths = "/onnxruntime-web/"
@@ -42,12 +42,8 @@ async function isModelInCache(modelType: 'webgpu' | 'wasm'): Promise<boolean> {
 
     // Check if the Cache API is available
     if ('caches' in window) {
-      console.log('looking for model in cache', CACHE_NAME, cacheKey);
       const cache = await caches.open(CACHE_NAME);
-      console.log('cache', cache);
-      cache.keys().then(keys => console.log('cache keys', keys));
       const response = await cache.match(cacheKey);
-      console.log('found model in cache?', !!response);
       return !!response;
     }
 

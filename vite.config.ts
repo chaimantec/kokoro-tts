@@ -1,12 +1,13 @@
-import { defineConfig } from "vite";
+import { defineConfig, PluginOption } from "vite";
 import removeConsole from "vite-plugin-remove-console";
 import webExtension from "vite-plugin-web-extension";
 
-let plugins = [webExtension({
-    additionalInputs: ["src/offscreen.html"]
-  })];
+let plugins: PluginOption[] = []
 
 // plugins.push(removeConsole());
+plugins.push(webExtension({
+    additionalInputs: ["src/offscreen.html"]
+  }));
 
 export default defineConfig({
   plugins,
