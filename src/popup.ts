@@ -56,10 +56,24 @@ async function loadSettings(): Promise<void> {
 
 // Function to play text using the TTS engine via background script
 async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<void> {
-  // Update state
-  playbackState = PlaybackState.PLAYING;
+  // First check if the model is ready before attempting to play
+  if (modelStatus !== 'ready') {
+    console.log('Model is not ready, cannot play audio. Current status:', modelStatus);
 
-  // We'll update the playback controls in updatePlaybackControls()
+    // Show appropriate error message
+    if (modelStatus === 'download_required') {
+      showErrorStatus('Please download the model before playing audio.');
+    } else if (modelStatus === 'loading') {
+      showErrorStatus('Model is still loading. Please wait...');
+    } else {
+      showErrorStatus('TTS model is not ready. Please check model status.');
+    }
+
+    return;
+  }
+
+  // Only update state if model is ready
+  playbackState = PlaybackState.PLAYING;
 
   // Update playback controls to show pause/stop state
   updatePlaybackControls();
@@ -79,8 +93,6 @@ async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<v
 
     // Update state
     playbackState = PlaybackState.IDLE;
-
-    // We'll update the playback controls in updatePlaybackControls()
 
     // Update playback controls to show play state
     updatePlaybackControls();
@@ -241,7 +253,9 @@ async function checkModelStatus(): Promise<void> {
       type: 'checkModelStatus'
     }, (response) => {
       if (response && response.modelStatus) {
+        // Update the global model status variable
         modelStatus = response.modelStatus;
+        console.log('Model status updated:', modelStatus);
 
         if (response.modelStatus === 'ready') {
           // Model is ready, hide the download message
@@ -249,11 +263,18 @@ async function checkModelStatus(): Promise<void> {
         } else if (response.modelStatus === 'download_required' && response.modelType && response.modelSize) {
           // Model needs to be downloaded, show the download message
           showModelDownloadMessage(response.modelType, response.modelSize);
+        } else if (response.modelStatus === 'loading') {
+          // Model is loading, show a loading message
+          showStatus('Loading TTS model. Please wait...', 'loading', false);
         }
+      } else {
+        console.log('No model status in response:', response);
       }
     });
   } catch (error) {
     console.error('Error checking model status:', error);
+    // Set model status to error in case of exception
+    modelStatus = 'error';
   }
 }
 
@@ -323,6 +344,7 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     // Update model status
     modelStatus = message.status;
     modelErrorMessage = message.errorMessage || null;
+    console.log('Received model status update:', modelStatus);
 
     // Show error if there's an issue with the model
     if (modelStatus === 'error' && modelErrorMessage) {
@@ -332,6 +354,16 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     else if (modelStatus === 'download_required' && message.modelType && message.modelSize) {
       console.log('Model download required:', message);
       showModelDownloadMessage(message.modelType, message.modelSize);
+
+      // Reset playback state to idle if we were trying to play
+      if (playbackState !== PlaybackState.IDLE) {
+        playbackState = PlaybackState.IDLE;
+        updatePlaybackControls();
+      }
+    }
+    // Show loading message if the model is loading
+    else if (modelStatus === 'loading') {
+      showStatus('Loading TTS model. Please wait...', 'loading', false);
     }
     // Hide the download message and loading status if the model is ready
     else if (modelStatus === 'ready') {
@@ -343,17 +375,26 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     sendResponse({ received: true });
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'playbackStatus') {
-    // Update playback status
-    playbackState = message.state as PlaybackState;
+    // Only update playback status if the model is ready
+    if (modelStatus === 'ready') {
+      // Update playback status
+      playbackState = message.state as PlaybackState;
+      console.log('Received playback status update:', playbackState);
 
-    // Update UI based on playback state
-    if (playbackState === PlaybackState.PLAYING) {
-      // Hide any error messages
-      hideStatus();
+      // Update UI based on playback state
+      if (playbackState === PlaybackState.PLAYING) {
+        // Hide any error messages
+        hideStatus();
+      }
+
+      // Update the playback controls
+      updatePlaybackControls();
+    } else {
+      console.log('Ignoring playback status update because model is not ready. Model status:', modelStatus);
+      // Force playback state to idle if model is not ready
+      playbackState = PlaybackState.IDLE;
+      updatePlaybackControls();
     }
-
-    // Update the playback controls
-    updatePlaybackControls();
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
@@ -440,9 +481,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Always set the text in the input field
         textInput.value = selectedText;
 
-        // Only play the text if no audio is currently playing
+        // Only play the text if no audio is currently playing and model is ready
         if (playbackState === PlaybackState.IDLE) {
-          console.log('No audio currently playing, reading selected text');
+          // We'll check model status in playTextWithTTS function
+          console.log('No audio currently playing, reading selected text if model is ready');
           playTextWithTTS(selectedText);
         } else {
           console.log('Audio already playing, just pasted text in textbox');
@@ -508,10 +550,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (response && response.isSpeaking && response.utterance) {
       console.log('Found active speech request:', response);
 
-      // Update state
-      playbackState = PlaybackState.PLAYING;
-
-      // Update voice, speed, and pitch if available
+      // Update voice, speed, and pitch if available (these should be updated regardless of model status)
       if (response.voice) {
         currentVoice = response.voice;
         voiceSelect.value = currentVoice;
@@ -529,10 +568,19 @@ document.addEventListener('DOMContentLoaded', function() {
         pitchValue.textContent = currentPitch.toFixed(1);
       }
 
-      // We'll update the playback controls in updatePlaybackControls()
+      // Only update playback state and controls if the model is ready
+      if (modelStatus === 'ready') {
+        // Update state
+        playbackState = PlaybackState.PLAYING;
 
-      // Update playback controls
-      updatePlaybackControls();
+        // Update playback controls
+        updatePlaybackControls();
+      } else {
+        console.log('Not updating playback controls because model is not ready. Model status:', modelStatus);
+        // Force playback state to idle if model is not ready
+        playbackState = PlaybackState.IDLE;
+        updatePlaybackControls();
+      }
     }
   });
 
