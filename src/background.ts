@@ -227,11 +227,14 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
 
     if (message.status === 'ready') {
       console.log('Kokoro model is ready');
+      chrome.contextMenus.update("readSelectedText", { enabled: true });
     } else if (message.status === 'error') {
       console.error('Error loading Kokoro model:', message.errorMessage);
+      chrome.contextMenus.update("readSelectedText", { enabled: false });
     } else if (message.status === 'download_required') {
       // Forward the download request to the popup if it's open
       console.log('Model download required:', message);
+      chrome.contextMenus.update("readSelectedText", { enabled: false });
       chrome.runtime.sendMessage({
         type: 'modelStatus',
         status: 'download_required',
@@ -603,7 +606,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.contextMenus.create({
     id: "readSelectedText",
     title: "Read with Kokoro",
-    contexts: ["selection"]
+    contexts: ["selection"],
+    enabled: false
   });
 
   // The voice will be automatically registered by the ttsEngine permission

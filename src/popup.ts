@@ -265,7 +265,7 @@ async function checkModelStatus(): Promise<void> {
           showModelDownloadMessage(response.modelType, response.modelSize);
         } else if (response.modelStatus === 'loading') {
           // Model is loading, show a loading message
-          showStatus('Loading TTS model. Please wait...', 'loading', false);
+          showStatus('Loading Kokoro model. Please wait...', 'loading', false);
         }
       } else {
         console.log('No model status in response:', response);
