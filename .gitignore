@@ -25,3 +25,5 @@ dist-ssr
 
 chunk*.wav
 *.zip
+dist.crx
+dist.pem
