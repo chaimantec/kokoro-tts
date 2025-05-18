@@ -5,8 +5,6 @@ import {
   DEFAULT_SETTINGS
 } from './types';
 
-import browser from "webextension-polyfill";
-
 // Global variables to track state
 let isSpeaking = false;
 let currentUtterance: string | null = null;
@@ -541,7 +539,7 @@ async function checkOffscreenDocument() {
 checkOffscreenDocument();
 
 // Register our engine with Chrome's TTS system
-browser.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(async () => {
   console.log('Kokoro Speak TTS Engine installed');
 
   // Create context menu item for reading selected text

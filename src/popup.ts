@@ -292,9 +292,20 @@ async function getSelectedTextFromActiveTab(): Promise<string> {
       return '';
     }
 
+    const tab = tabs[0];
+    const isInjectable = tab.url && 
+      (tab.url.startsWith('http:') || 
+      tab.url.startsWith('https:') || 
+      tab.url.startsWith('file:')) && 
+      tab.status === 'complete';
+
+    if (!isInjectable) {
+      return '';
+    }
+
     // Execute a script to get the selected text
     const results = await chrome.scripting.executeScript({
-      target: { tabId: tabs[0].id! },
+      target: { tabId: tab.id! },
       func: () => window.getSelection()?.toString() || ''
     });
 

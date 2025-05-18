@@ -7,13 +7,7 @@ env.wasmPaths = "/onnxruntime-web/"
 // Add a PitchShifter instance
 let pitchShifter: PitchShifter | null = null;
 
-// Access the KokoroTTS and TextSplitterStream from the global window object
 declare global {
-//   interface Window {
-//     KokoroTTS: any;
-//     TextSplitterStream: any;
-//   }
-
   interface Navigator {
     gpu?: any;
   }
@@ -35,15 +29,6 @@ let currentBuffer: AudioBuffer | null = null;
 // Keep-alive mechanism
 let keepAliveInterval: number | null = null;
 
-// Log function
-function log(message: string): void {
-  console.log(message);
-  const logEl = document.getElementById('log');
-  if (logEl) {
-    logEl.textContent = (logEl.textContent || '') + message + '\n';
-  }
-}
-
 // Initialize the audio context
 function initAudioContext(): void {
   if (!audioContext) {
@@ -51,12 +36,12 @@ function initAudioContext(): void {
       audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       pitchShifter = new PitchShifter(audioContext);
       pitchShifter.initialize().then(() => {
-        log('Audio context and pitch shifter initialized');
+        console.log('Audio context and pitch shifter initialized');
       }).catch(error => {
-        log('Error initializing pitch shifter: ' + error.message);
+        console.error('Error initializing pitch shifter: ' + error.message);
       });
     } catch (error: any) {
-      log('Error initializing audio context: ' + error.message);
+      console.error('Error initializing audio context: ' + error.message);
     }
   }
 }
@@ -64,7 +49,7 @@ function initAudioContext(): void {
 // Function to initialize the Kokoro model
 async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
   if (kokoroModel || isModelLoading) {
-    log('Model already loaded or loading');
+    console.log('Model already loaded or loading');
     return;
   }
 
@@ -77,39 +62,34 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
       status: 'loading'
     });
 
-    log('Initializing Kokoro model...');
+    console.log('Initializing Kokoro model...');
 
     if (useWebGPU && window.navigator.gpu) {
-      log('Attempting to use WebGPU for model inference...');
+      console.log('Attempting to use WebGPU for model inference...');
 
       try {
         // Initialize Kokoro with WebGPU
-        log('Loading model with WebGPU...');
+        console.log('Loading model with WebGPU...');
         kokoroModel = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
           dtype: 'fp32',
           device: 'webgpu'
         });
-        log('Model loaded successfully with WebGPU!');
+        console.log('Model loaded successfully with WebGPU!');
       } catch (gpuError: any) {
-        log(`WebGPU initialization failed: ${gpuError.message}`);
-        log('Falling back to default backend...');
-
-        // Fall back to default backend
-        kokoroModel = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
-          dtype: 'q8',
-          device: 'wasm'
-        });
+        console.error(`WebGPU initialization failed: ${gpuError.message}`);
       }
-    } else {
+    }
+    
+    if (!kokoroModel) {
       // Initialize Kokoro with default backend
-      log('Loading model with default backend...');
+      console.log('Loading model with default backend...');
       kokoroModel = await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', {
         dtype: 'q8',
         device: 'wasm'
       });
     }
 
-    log('Model loaded successfully!');
+    console.log('Model loaded successfully!');
 
     // Initialize audio context
     initAudioContext();
@@ -120,7 +100,7 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
       status: 'ready'
     });
   } catch (error: any) {
-    log(`Error loading model: ${error.message}`);
+    console.error(`Error loading model: ${error.message}`);
 
     // Send status update
     chrome.runtime.sendMessage({
@@ -146,7 +126,7 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
     isPlaying = true;
     currentChunk = audioQueue.shift();
 
-    log(`Playing chunk with length: ${currentChunk.audio.length}, sampling rate: ${currentChunk.sampling_rate}`);
+    console.log(`Playing chunk with length: ${currentChunk.audio.length}, sampling rate: ${currentChunk.sampling_rate}`);
 
     if (!audioContext) {
       initAudioContext();
@@ -175,7 +155,7 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
     // When this chunk ends, play the next one
     const playbackDuration = currentBuffer.duration / speed;
     const timeoutId = setTimeout(() => {
-      log('Chunk playback completed');
+      console.log('Chunk playback completed');
       isPlaying = false;
       currentAudioSource = null;
       currentChunk = null;
@@ -185,7 +165,7 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
       if (audioQueue.length > 0 && audioContext && audioContext.state !== 'suspended') {
         playNextInQueue(speed, pitch);
       } else {
-        log('No more chunks to play or playback was stopped');
+        console.log('No more chunks to play or playback was stopped');
 
         // If there are no more chunks and we're not suspended, we've completed playback
         if (audioQueue.length === 0 && audioContext && audioContext.state !== 'suspended') {
@@ -204,7 +184,7 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
     // Start playing the audio
     pitchShifter.start();
 
-    log('Playing audio chunk...');
+    console.log('Playing audio chunk...');
 
     // Notify background script about playback status
     chrome.runtime.sendMessage({
@@ -212,7 +192,7 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
       state: 'playing'
     });
   } catch (error: any) {
-    log(`Error playing audio chunk: ${error.message}`);
+    console.error(`Error playing audio chunk: ${error.message}`);
     isPlaying = false;
     currentAudioSource = null;
 
@@ -225,13 +205,13 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
 
 // Function to pause audio playback
 function pauseAudio(): void {
-  log('Pausing audio playback');
+  console.log('Pausing audio playback');
 
   if (audioContext && isPlaying) {
     // Simply suspend the audio context - this pauses all audio processing
     // without stopping the AudioBufferSourceNode
     audioContext.suspend().then(() => {
-      log('Audio context suspended successfully');
+      console.log('Audio context suspended successfully');
       isPaused = true;
       isPlaying = false;
 
@@ -241,20 +221,20 @@ function pauseAudio(): void {
         state: 'paused'
       });
     }).catch(error => {
-      log('Error suspending audio context: ' + error);
+      console.error('Error suspending audio context: ' + error);
     });
   }
 }
 
 // Function to resume audio playback
 function resumeAudio(): void {
-  log('Resuming audio playback');
+  console.log('Resuming audio playback');
 
   if (audioContext && isPaused) {
     // Simply resume the audio context - this continues audio processing
     // from exactly where it left off
     audioContext.resume().then(() => {
-      log('Audio context resumed successfully');
+      console.log('Audio context resumed successfully');
       isPaused = false;
       isPlaying = true;
 
@@ -264,7 +244,7 @@ function resumeAudio(): void {
         state: 'playing'
       });
     }).catch(error => {
-      log('Error resuming audio context: ' + error);
+      console.error('Error resuming audio context: ' + error);
     });
   }
 }
@@ -272,12 +252,11 @@ function resumeAudio(): void {
 // Function to play audio using Kokoro TTS
 async function playAudioWithKokoro(
   text: string,
-  useWebGPU: boolean = false,
   voice?: string,
   speed?: number,
   pitch?: number
 ): Promise<void> {
-  log(`Generating speech for: "${text}" with voice: ${voice || 'default'}, speed: ${speed || 1.0}, pitch: ${pitch || 1.0}`);
+  console.log(`Generating speech for: "${text}" with voice: ${voice || 'default'}, speed: ${speed || 1.0}, pitch: ${pitch || 1.0}`);
 
   // Stop any currently playing audio
   if (currentAudioSource) {
@@ -285,7 +264,7 @@ async function playAudioWithKokoro(
       currentAudioSource.stop();
       currentAudioSource = null;
     } catch (error) {
-      log('Error stopping audio source: ' + error);
+      console.error('Error stopping audio source: ' + error);
     }
   }
 
@@ -297,25 +276,6 @@ async function playAudioWithKokoro(
   // Reset audio playback variables
   currentChunk = null;
   currentBuffer = null;
-
-  // Make sure the model is initialized
-  if (!kokoroModel) {
-    try {
-      await initKokoroModel(useWebGPU);
-    } catch (error: any) {
-      log('Failed to initialize model: ' + error.message);
-
-      // Send error event
-      chrome.runtime.sendMessage({
-        type: 'ttsEvent',
-        eventType: 'error',
-        utterance: text,
-        errorMessage: `Failed to initialize model: ${error.message}`
-      });
-
-      return;
-    }
-  }
 
   try {
     // Send start event immediately
@@ -347,23 +307,23 @@ async function playAudioWithKokoro(
     // Start streaming generation with voice parameter if provided
     for await (const chunk of kokoroModel.stream(splitter, options)) {
       sentenceCount++;
-      log(`Received chunk ${sentenceCount}: "${chunk.text}"`);
+      console.log(`Received chunk ${sentenceCount}: "${chunk.text}"`);
 
       // Add the audio chunk to the queue
       audioQueue.push(chunk.audio);
       totalAudioLength += chunk.audio.audio.length;
 
       // Log detailed information about the audio chunk
-      log(`Audio chunk ${sentenceCount}: length=${chunk.audio.audio.length}, sampling_rate=${chunk.audio.sampling_rate}`);
+      console.log(`Audio chunk ${sentenceCount}: length=${chunk.audio.audio.length}, sampling_rate=${chunk.audio.sampling_rate}`);
 
       // Start playing if this is the first chunk and not already playing
-      if (sentenceCount === 1) {
+      if (sentenceCount === 1 || !isPlaying) {
         playNextInQueue(speed, pitch);
       }
     }
 
-    log('Speech generation completed!');
-    log(`Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`);
+    console.log('Speech generation completed!');
+    console.log(`Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`);
 
     // Wait for all audio to finish playing
     const checkPlaybackComplete = () => {
@@ -381,7 +341,7 @@ async function playAudioWithKokoro(
 
     checkPlaybackComplete();
   } catch (error: any) {
-    log('Error generating speech: ' + error.message);
+    console.error('Error generating speech: ' + error.message);
 
     // Send error event
     chrome.runtime.sendMessage({
@@ -396,13 +356,13 @@ async function playAudioWithKokoro(
 // Function to check if WebGPU is available
 function isWebGPUAvailable(): boolean {
   const hasWebGPU = !!window.navigator.gpu;
-  log(`WebGPU available: ${hasWebGPU}`);
+  console.log(`WebGPU available: ${hasWebGPU}`);
   return hasWebGPU;
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendResponse) => {
-  log('Offscreen document received message: ' + JSON.stringify(message));
+chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, sendResponse) => {
+  console.log('Offscreen document received message: ' + JSON.stringify(message));
 
   if (message.target === 'offscreen') {
     if (message.type === 'initModel') {
@@ -422,45 +382,28 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       return true;
     } else if (message.type === 'playAudio' && message.text) {
       // Check WebGPU availability in the offscreen document
-      const useWebGPU = isWebGPUAvailable();
-
-      // Use Kokoro TTS if the model is loaded, otherwise fall back to API
-      if (kokoroModel) {
-        playAudioWithKokoro(
-          message.text,
-          useWebGPU,
-          message.voice,
-          message.speed,
-          message.pitch
-        )
-          .then(() => {
-            sendResponse({ success: true });
-          })
-          .catch((error) => {
-            sendResponse({ success: false, error: error.message });
-          });
-      } else {
-        // Try to initialize the model first
-        initKokoroModel(useWebGPU)
-          .then(() => {
-            // Now use Kokoro TTS
-            return playAudioWithKokoro(
-              message.text,
-              useWebGPU,
-              message.voice,
-              message.speed,
-              message.pitch
-            );
-          })
-          .then(() => {
-            sendResponse({ success: true });
-          })
-          .catch((error) => {
-            log('Error initializing model: ' + error.message);
-            sendResponse({ success: false, error: error.message });
-          });
+      if (!kokoroModel) {
+        try {
+          await initKokoroModel(isWebGPUAvailable());
+        } catch (error: any) {
+          console.error('Error initializing model: ' + error.message);
+          sendResponse({ success: false, error: error.message });
+        }
       }
 
+      playAudioWithKokoro(
+        message.text,
+        message.voice,
+        message.speed,
+        message.pitch
+      )
+        .then(() => {
+          sendResponse({ success: true });
+        })
+        .catch((error) => {
+          sendResponse({ success: false, error: error.message });
+        });
+        
       // Return true to indicate we will send a response asynchronously
       return true;
     } else if (message.type === 'pauseAudio') {
@@ -475,13 +418,13 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       return true;
     } else if (message.type === 'stopAudio') {
       // Immediately stop all audio playback
-      log('Stopping all audio playback immediately');
+      console.log('Stopping all audio playback immediately');
 
       // Clear any pending timeouts for chunk playback
       if ((window as any).currentChunkTimeoutId) {
         clearTimeout((window as any).currentChunkTimeoutId);
         (window as any).currentChunkTimeoutId = null;
-        log('Cleared pending chunk timeout');
+        console.log('Cleared pending chunk timeout');
       }
 
       // Clear the audio queue and reset playing state
@@ -505,7 +448,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
           currentAudioSource.stop();
           currentAudioSource = null;
         } catch (error) {
-          log('Error stopping audio source: ' + error);
+          console.error('Error stopping audio source: ' + error);
         }
       }
 
@@ -513,9 +456,9 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       if (pitchShifter) {
         try {
           pitchShifter.stop();
-          log('Pitch shifter stopped');
+          console.log('Pitch shifter stopped');
         } catch (error) {
-          log('Error stopping pitch shifter: ' + error);
+          console.error('Error stopping pitch shifter: ' + error);
         }
       }
 
@@ -523,7 +466,7 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
       if (audioContext) {
         try {
           audioContext.suspend().then(() => {
-            log('Audio context suspended');
+            console.log('Audio context suspended');
 
             // Create a new audio context to ensure clean state for next playback
             audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -531,15 +474,15 @@ chrome.runtime.onMessage.addListener((message: OffscreenMessage, _sender, sendRe
             // Reinitialize the pitch shifter with the new context
             pitchShifter = new PitchShifter(audioContext);
             pitchShifter.initialize().then(() => {
-              log('New audio context and pitch shifter initialized after stop');
+              console.log('New audio context and pitch shifter initialized after stop');
             }).catch(error => {
-              log('Error initializing new pitch shifter after stop: ' + error);
+              console.error('Error initializing new pitch shifter after stop: ' + error);
             });
           }).catch(error => {
-            log('Error suspending audio context: ' + error);
+            console.error('Error suspending audio context: ' + error);
           });
         } catch (error) {
-          log('Error handling audio context during stop: ' + error);
+          console.error('Error handling audio context during stop: ' + error);
         }
       }
 
@@ -561,12 +504,12 @@ function startKeepAlive(): void {
 
   // Set up a new interval to ping every 30 seconds
   keepAliveInterval = setInterval(() => {
-    log('Keep-alive ping');
+    console.log('Keep-alive ping');
     // Perform a minimal operation to keep the document active
     if (audioContext) {
       // Just check the current time to keep the audio context active
       const currentTime = audioContext.currentTime;
-      log(`Current audio context time: ${currentTime}`);
+      console.log(`Current audio context time: ${currentTime}`);
     }
   }, 30000) as unknown as number; // 30 seconds
 }
