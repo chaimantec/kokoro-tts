@@ -434,36 +434,9 @@ async function getVoiceFile(id) {
   }
 
   const url = chrome.runtime.getURL(`voices/${id}.bin`);
-
-  let cache;
-  try {
-    cache = await caches.open("kokoro-voices");
-    const cachedResponse = await cache.match(url);
-    if (cachedResponse) {
-      return await cachedResponse.arrayBuffer();
-    }
-  } catch (e) {
-    console.warn("Unable to open cache", e);
-  }
-
   // No cache, or cache failed to open. Fetch the file.
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();
-
-  if (cache) {
-    try {
-      // NOTE: We use `new Response(buffer, ...)` instead of `response.clone()` to handle LFS files
-      await cache.put(
-        url,
-        new Response(buffer, {
-          headers: response.headers,
-        }),
-      );
-    } catch (e) {
-      console.warn("Unable to cache file", e);
-    }
-  }
-
   return buffer;
 }
 
