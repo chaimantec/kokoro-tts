@@ -3,6 +3,8 @@ import { KokoroTTS, env, TextSplitterStream } from 'kokoro-js';
 import { PitchShifter } from './audio-processor';
 
 env.wasmPaths = "/onnxruntime-web/"
+env.allowRemoteModels = false;
+env.allowLocalModels = true;
 
 // Add a PitchShifter instance
 let pitchShifter: PitchShifter | null = null;

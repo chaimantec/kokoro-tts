@@ -11,7 +11,7 @@
     "default": "./dist/kokoro.js"
   },
   "scripts": {
-    "build": "rm -rf dist types && rollup -c && tsc && cp ../LICENSE LICENSE",
+    "build": "rm -rf dist types && rollup -c && tsc",
     "format": "prettier --write . --print-width 1000",
     "test": "vitest run"
   },

@@ -156,6 +156,18 @@ export const env = {
   get wasmPaths() {
     return hf.backends.onnx.wasm.wasmPaths;
   },
+  set allowRemoteModels(value) {
+    hf.allowRemoteModels = value;
+  },
+  get allowRemoteModels() {
+    return hf.allowRemoteModels;
+  },
+  set allowLocalModels(value) {
+    hf.allowLocalModels = value;
+  },
+  get allowLocalModels() {
+    return hf.allowLocalModels;
+  },
 };
 
 export { TextSplitterStream };
