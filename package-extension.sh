@@ -3,10 +3,12 @@
 # Build the extension first
 echo "Building Kokoro TTS Engine extension..."
 npm run build
+sleep 1
 
 # Create a zip file of the extension
 echo "Packaging Kokoro TTS Engine extension..."
 cd dist
+rm -rf ../kokoro-speak.zip
 zip -r ../kokoro-speak.zip ./*
 cd ..
 echo "Extension packaged as kokoro-speak.zip"

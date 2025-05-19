@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist",
-    "build": "npm run clean && tsc && vite build",
+    "build": "npm run clean && tsc && vite build && rm dist/ort-wasm-simd-threaded.jsep.wasm",
     "preview": "vite preview",
     "api:setup": "cd src/api && npm run setup",
     "api:start": "cd src/api && npm start",
