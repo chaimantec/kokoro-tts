@@ -1,8 +1,7 @@
 Kokoro Speak: In-Browser Text-to-Speech
 
 Kokoro Speak is a powerful text-to-speech extension that runs entirely in your browser - no internet 
-connection required after initial setup. Using frontier Kokoro 82M 1.0 model, it converts text to natural-sounding 
-speech with customizable voice settings.
+connection required, it converts text to natural-sounding speech with customizable voice settings.
 
 Kokoro Speak only speaks English.
 
@@ -17,9 +16,5 @@ Features:
 • Use WebGPU for fast speech generation
 
 Perfect for accessibility needs, language learning, proofreading, or simply resting your eyes while browsing.
-
-Note: First-time use requires downloading voice models (92-326MB depending on your hardware). 
-326MB model is for WebGPU. 92MB is for WebAssembly.
-First use of a voice will also download that voice's model.
 
 Many thanks to hexgrad for excellent Kokoro model https://huggingface.co/hexgrad/Kokoro-82M.

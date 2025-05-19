@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "clean": "rm -rf dist",
-    "build": "npm run kokorojs:build && npm run clean && tsc && vite build && rm dist/ort-wasm-simd-threaded.jsep.wasm",
+    "build": "npm run clean && tsc && vite build && rm dist/ort-wasm-simd-threaded.jsep.wasm",
     "preview": "vite preview",
     "kokorojs:build": "cd kokoro.js && npm run build",
     "package-extension": "./package-extension.sh"

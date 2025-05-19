@@ -230,43 +230,8 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
     } else if (message.status === 'error') {
       console.error('Error loading Kokoro model:', message.errorMessage);
       chrome.contextMenus.update("readSelectedText", { enabled: false });
-    } else if (message.status === 'download_required') {
-      // Forward the download request to the popup if it's open
-      console.log('Model download required:', message);
-      chrome.contextMenus.update("readSelectedText", { enabled: false });
-      chrome.runtime.sendMessage({
-        type: 'modelStatus',
-        status: 'download_required',
-        modelType: message.modelType,
-        modelSize: message.modelSize
-      });
     }
-  } else if (message.type === 'modelDownload') {
-    // User has requested model download
-    console.log('Received model download request:', message);
-
-    // Forward the download request to the offscreen document
-    (async () => {
-      try {
-        // Ensure we have an offscreen document
-        await ensureOffscreenDocument();
-
-        // Send message to offscreen document to initialize the model
-        await chrome.runtime.sendMessage({
-          target: 'offscreen',
-          type: 'initModel',
-          modelType: message.modelType,
-          download: true
-        });
-
-        console.log('Sent init model message to offscreen document');
-        sendResponse({ success: true });
-      } catch (error) {
-        console.error('Error initializing Kokoro model:', error);
-        sendResponse({ success: false, error });
-      }
-    })();
-    return true; // Keep the message channel open for async responses
+    // No need to handle 'download_required' as model is always bundled
   } else if (message.type === 'ttsEvent') {
     // TTS event from offscreen document
     console.log('Received TTS event from offscreen document:', message);
@@ -606,7 +571,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     id: "readSelectedText",
     title: "Read with Kokoro",
     contexts: ["selection"],
-    enabled: false
+    enabled: true
   });
 
   // Initialize the Kokoro model in the offscreen document

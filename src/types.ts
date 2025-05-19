@@ -131,7 +131,6 @@ export interface InitModelMessage {
   target: 'offscreen';
   type: 'initModel';
   modelType?: 'webgpu' | 'wasm';
-  download?: boolean;
 }
 
 export interface CheckModelStatusMessage {
@@ -141,15 +140,8 @@ export interface CheckModelStatusMessage {
 
 export interface ModelStatusMessage {
   type: 'modelStatus';
-  status: 'loading' | 'ready' | 'error' | 'download_required';
+  status: 'loading' | 'ready' | 'error';
   errorMessage?: string;
-  modelType?: 'webgpu' | 'wasm';
-  modelSize?: string;
-}
-
-export interface ModelDownloadMessage {
-  type: 'modelDownload';
-  modelType: 'webgpu' | 'wasm';
 }
 
 export type BackgroundMessage =
@@ -162,8 +154,7 @@ export type BackgroundMessage =
   | ResumePlaybackMessage
   | StopPlaybackMessage
   | TtsEventMessage
-  | ModelStatusMessage
-  | ModelDownloadMessage;
+  | ModelStatusMessage;
 
 export type OffscreenMessage =
   | PlayAudioMessage

@@ -56,23 +56,7 @@ async function loadSettings(): Promise<void> {
 
 // Function to play text using the TTS engine via background script
 async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<void> {
-  // First check if the model is ready before attempting to play
-  if (modelStatus !== 'ready') {
-    console.log('Model is not ready, cannot play audio. Current status:', modelStatus);
-
-    // Show appropriate error message
-    if (modelStatus === 'download_required') {
-      showErrorStatus('Please download the model before playing audio.');
-    } else if (modelStatus === 'loading') {
-      showErrorStatus('Model is still loading. Please wait...');
-    } else {
-      showErrorStatus('TTS model is not ready. Please check model status.');
-    }
-
-    return;
-  }
-
-  // Only update state if model is ready
+  // Model is always ready since it's bundled
   playbackState = PlaybackState.PLAYING;
 
   // Update playback controls to show pause/stop state
@@ -197,109 +181,6 @@ function hideStatus(): void {
   }
 }
 
-// Function to initiate model download
-function initiateModelDownload(modelType: 'webgpu' | 'wasm', modelSize: string): void {
-  // Hide any existing error messages
-  hideStatus();
-
-  // Send download request to background script
-  chrome.runtime.sendMessage({
-    type: 'modelDownload',
-    modelType: modelType
-  });
-
-  // Show loading message with loading style and no auto-hide
-  showStatus(`Downloading ${modelSize} model. Please wait...`, 'loading', false);
-}
-
-// Global variable to track model status
-let modelStatus: 'loading' | 'ready' | 'error' | 'unknown' | 'download_required' = 'unknown';
-let modelErrorMessage: string | null = null;
-let modelDownloadType: 'webgpu' | 'wasm' | null = null;
-let modelDownloadSize: string | null = null;
-
-// Function to show the model download message
-function showModelDownloadMessage(modelType: 'webgpu' | 'wasm', modelSize: string): void {
-  const modelDownloadMessage = document.getElementById('modelDownloadMessage') as HTMLDivElement;
-  const modelDownloadText = document.getElementById('modelDownloadText') as HTMLParagraphElement;
-
-  if (modelDownloadMessage && modelDownloadText) {
-    // Update the message text with model type and size
-    modelDownloadText.textContent = `A ${modelSize} ${modelType.toUpperCase()} model needs to be downloaded to enable voice functionality.`;
-
-    // Store the model type and size for later use
-    modelDownloadType = modelType;
-    modelDownloadSize = modelSize;
-
-    // Show the message
-    modelDownloadMessage.style.display = 'block';
-  }
-}
-
-// Function to hide the model download message
-function hideModelDownloadMessage(): void {
-  const modelDownloadMessage = document.getElementById('modelDownloadMessage') as HTMLDivElement;
-
-  if (modelDownloadMessage) {
-    modelDownloadMessage.style.display = 'none';
-  }
-}
-
-// Function to check model status
-async function checkModelStatus(): Promise<void> {
-  try {
-    // Send a message to the background script to check model status
-    chrome.runtime.sendMessage({
-      type: 'checkModelStatus'
-    }, (response) => {
-      if (response && response.modelStatus) {
-        // Update the global model status variable
-        modelStatus = response.modelStatus;
-        console.log('Model status updated:', modelStatus);
-
-        if (response.modelStatus === 'ready') {
-          // Model is ready, hide the download message
-          hideModelDownloadMessage();
-          // No need to reset playback state if model is ready
-        } else if (response.modelStatus === 'download_required' && response.modelType && response.modelSize) {
-          // Model needs to be downloaded, show the download message
-          showModelDownloadMessage(response.modelType, response.modelSize);
-
-          // Reset playback state to idle if we were trying to play
-          if (playbackState !== PlaybackState.IDLE) {
-            console.log('Resetting playback state to idle because model needs to be downloaded');
-            playbackState = PlaybackState.IDLE;
-            updatePlaybackControls();
-          }
-        } else if (response.modelStatus === 'loading') {
-          // Model is loading, show a loading message
-          showStatus('Loading Kokoro model. Please wait...', 'loading', false);
-
-          // Reset playback state to idle if we were trying to play
-          if (playbackState !== PlaybackState.IDLE) {
-            console.log('Resetting playback state to idle because model is loading');
-            playbackState = PlaybackState.IDLE;
-            updatePlaybackControls();
-          }
-        }
-      } else {
-        console.log('No model status in response:', response);
-      }
-    });
-  } catch (error) {
-    console.error('Error checking model status:', error);
-    // Set model status to error in case of exception
-    modelStatus = 'error';
-
-    // Reset playback state to idle on error
-    if (playbackState !== PlaybackState.IDLE) {
-      console.log('Resetting playback state to idle due to model status error');
-      playbackState = PlaybackState.IDLE;
-      updatePlaybackControls();
-    }
-  }
-}
-
 // Function to pause playback
 function pausePlayback(): void {
   if (playbackState === PlaybackState.PLAYING) {
@@ -363,61 +244,31 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     sendResponse({ received: true });
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'modelStatus') {
-    // Update model status
-    modelStatus = message.status;
-    modelErrorMessage = message.errorMessage || null;
-    console.log('Received model status update:', modelStatus);
+    // Model status is always ready since model is bundled
+    console.log('Received model status update:', message.status);
 
     // Show error if there's an issue with the model
-    if (modelStatus === 'error' && modelErrorMessage) {
-      showErrorStatus(`Model error: ${modelErrorMessage}`);
-    }
-    // Show persistent download message if download is required
-    else if (modelStatus === 'download_required' && message.modelType && message.modelSize) {
-      console.log('Model download required:', message);
-      showModelDownloadMessage(message.modelType, message.modelSize);
-
-      // Reset playback state to idle if we were trying to play
-      if (playbackState !== PlaybackState.IDLE) {
-        playbackState = PlaybackState.IDLE;
-        updatePlaybackControls();
-      }
-    }
-    // Show loading message if the model is loading
-    else if (modelStatus === 'loading') {
-      showStatus('Loading TTS model. Please wait...', 'loading', false);
-    }
-    // Hide the download message and loading status if the model is ready
-    else if (modelStatus === 'ready') {
-      hideModelDownloadMessage();
-      hideStatus();
+    if (message.status === 'error' && message.errorMessage) {
+      showErrorStatus(`Model error: ${message.errorMessage}`);
     }
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'playbackStatus') {
-    console.log('Received playback status update:', message.state, 'Current model status:', modelStatus);
+    console.log('Received playback status update:', message.state);
 
-    // Only update playback status if the model is ready
-    if (modelStatus === 'ready') {
-      // Update playback status
-      playbackState = message.state as PlaybackState;
+    // Update playback status (model is always ready)
+    playbackState = message.state as PlaybackState;
 
-      // Update UI based on playback state
-      if (playbackState === PlaybackState.PLAYING) {
-        // Hide any error messages
-        hideStatus();
-      }
-
-      // Update the playback controls
-      updatePlaybackControls();
-    } else {
-      console.log('Ignoring playback status update because model is not ready. Model status:', modelStatus);
-      // Force playback state to idle if model is not ready
-      playbackState = PlaybackState.IDLE;
-      updatePlaybackControls();
+    // Update UI based on playback state
+    if (playbackState === PlaybackState.PLAYING) {
+      // Hide any error messages
+      hideStatus();
     }
+
+    // Update the playback controls
+    updatePlaybackControls();
 
     // Send a response to acknowledge receipt of the message
     sendResponse({ received: true });
@@ -639,16 +490,8 @@ document.addEventListener('DOMContentLoaded', function() {
     stopPlayback();
   });
 
-  // Add event listener for the download model button
+  // No need for download button as model is bundled
   if (downloadModelButton) {
-    downloadModelButton.addEventListener('click', function() {
-      if (modelDownloadType && modelDownloadSize) {
-        // Initiate model download directly
-        initiateModelDownload(modelDownloadType, modelDownloadSize);
-      }
-    });
+    downloadModelButton.style.display = 'none';
   }
-
-  // Check model status when popup opens
-  checkModelStatus();
 });

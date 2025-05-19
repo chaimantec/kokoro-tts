@@ -2,8 +2,8 @@
 
 # Build the extension first
 echo "Building Kokoro TTS Engine extension..."
+npm run kokorojs:build
 npm run build
-sleep 1
 
 # Create a zip file of the extension
 echo "Packaging Kokoro TTS Engine extension..."

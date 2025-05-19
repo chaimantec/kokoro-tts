@@ -433,7 +433,7 @@ async function getVoiceFile(id) {
     return buffer;
   }
 
-  const url = `${VOICE_DATA_URL}/${id}.bin`;
+  const url = chrome.runtime.getURL(`voices/${id}.bin`);
 
   let cache;
   try {
