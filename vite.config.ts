@@ -14,7 +14,7 @@ plugins.push(removeConsole());
 export default defineConfig({
   plugins,
   build: {
-    minify: false,
-    sourcemap: true,
+    minify: true,
+    sourcemap: false,
   }
 });
