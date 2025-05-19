@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@soundtouchjs/audio-worklet": "^0.2.1",
-    "kokoro-js": "^1.2.1",
+    "kokoro-js": "file:./kokoro.js",
     "onnxruntime-web": "^1.22.0"
   },
   "devDependencies": {
