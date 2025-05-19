@@ -9,6 +9,8 @@ plugins.push(webExtension({
     additionalInputs: ["src/offscreen.html"]
   }));
 
+plugins.push(removeConsole());
+
 export default defineConfig({
   plugins,
   build: {
