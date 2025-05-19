@@ -22,5 +22,5 @@
     /* Chrome Extension */
     "typeRoots": ["./node_modules/@types", "./node_modules/@types/chrome"]
   },
-  "include": ["src/extension/**/*.ts", "src/background.ts", "src/offscreen.ts", "src/popup.ts", "src/types.ts"]
+  "include": ["src/**/*"]
 }
