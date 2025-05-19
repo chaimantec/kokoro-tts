@@ -27,3 +27,4 @@ chunk*.wav
 *.zip
 dist.crx
 dist.pem
+*.onnx
