@@ -2,6 +2,8 @@
 
 A Chrome extension that provides text-to-speech functionality using the Kokoro 82M v1.0 model. The extension bundles ONNX models for offline TTS processing.
 
+[Chrome Web Store Link](https://chromewebstore.google.com/detail/kokoro-speak/apfbmojocfgjmleahkfaphoehbphpigm)
+
 ## Features
 
 - **Bundled TTS Model**: Uses Kokoro TTS ONNX models for offline speech synthesis
