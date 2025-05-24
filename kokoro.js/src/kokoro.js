@@ -1,7 +1,7 @@
 import { env as hf, StyleTextToSpeech2Model, AutoTokenizer, Tensor, RawAudio } from "@huggingface/transformers";
 import { phonemize } from "./phonemize.js";
 import { TextSplitterStream } from "./splitter.js";
-import { getVoiceData, VOICES } from "./voices.js";
+import { getVoiceData, VOICES, env as voiceEnv } from "./voices.js";
 
 const STYLE_DIM = 256;
 const SAMPLE_RATE = 24000;
@@ -168,6 +168,9 @@ export const env = {
   get allowLocalModels() {
     return hf.allowLocalModels;
   },
+  set voicePath(value) {
+    voiceEnv.voicePath = value;
+  }
 };
 
 export { TextSplitterStream };

@@ -418,6 +418,9 @@ export const VOICES = Object.freeze({
   // },
 });
 
+export let env = { 
+  voicePath: ''
+}
 const VOICE_DATA_URL = "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices";
 
 /**
@@ -433,7 +436,8 @@ async function getVoiceFile(id) {
     return buffer;
   }
 
-  const url = chrome.runtime.getURL(`voices/${id}.bin`);
+  //const url = chrome.runtime.getURL(`voices/${id}.bin`);
+  const url = `${env.voicePath}/${id}.bin`;
   // No cache, or cache failed to open. Fetch the file.
   const response = await fetch(url);
   const buffer = await response.arrayBuffer();

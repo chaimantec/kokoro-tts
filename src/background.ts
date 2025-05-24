@@ -101,9 +101,9 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
     (async () => {
       try {
         // Store voice, speed, and pitch settings
-        currentVoice = message.voice || null;
-        currentSpeed = message.speed || null;
-        currentPitch = message.pitch || null;
+        currentVoice = message.voice || "af_heart";
+        currentSpeed = message.speed || 1.0;
+        currentPitch = message.pitch || 1.0;
 
         await readTextWithCustomTTS(message.text, message.voice, message.speed, message.pitch);
 
@@ -467,6 +467,7 @@ async function readTextWithCustomTTS(
     console.log('Using saved settings:', { voice, speed, pitch });
   }
 
+  console.log('Are we speaking?', isSpeaking);
   // Stop any currently speaking utterance
   if (isSpeaking) {
     // Send message to offscreen document to stop audio

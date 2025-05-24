@@ -91,9 +91,11 @@ export interface StopPlaybackMessage {
   type: 'stopPlayback';
 }
 
+export type PlaybackStatus = 'idle' | 'playing' | 'paused';
+
 export interface PlaybackStatusMessage {
   type: 'playbackStatus';
-  state: 'idle' | 'playing' | 'paused';
+  state: PlaybackStatus;
 }
 
 export interface TtsEventMessage {
