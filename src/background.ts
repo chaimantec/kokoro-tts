@@ -16,54 +16,7 @@ let currentPitch: number | null = null;
 chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendResponse) => {
   console.log('Background script received message:', message);
 
-  if (message.type === 'speechEnded') {
-    // Speech has ended in the popup
-    if (isSpeaking && currentUtterance === message.utterance) {
-      // Send end event to Chrome TTS
-      if (currentSendTtsEventId) {
-        chrome.ttsEngine.sendTtsEvent(
-          currentSendTtsEventId,
-          { type: 'end', charIndex: currentUtterance.length }
-        );
-      }
-
-      // Reset state
-      isSpeaking = false;
-      currentUtterance = null;
-      currentSendTtsEventId = null;
-
-      // Notify popup about playback status change
-      chrome.runtime.sendMessage({
-        type: 'playbackStatus',
-        state: 'idle'
-      });
-    }
-  } else if (message.type === 'speechError') {
-    // Speech error in the popup
-    if (isSpeaking) {
-      // Send error event to Chrome TTS
-      if (currentSendTtsEventId) {
-        chrome.ttsEngine.sendTtsEvent(
-          currentSendTtsEventId,
-          {
-            type: 'error',
-            errorMessage: message.errorMessage || 'Unknown error'
-          }
-        );
-      }
-
-      // Reset state
-      isSpeaking = false;
-      currentUtterance = null;
-      currentSendTtsEventId = null;
-
-      // Notify popup about playback status change
-      chrome.runtime.sendMessage({
-        type: 'playbackStatus',
-        state: 'idle'
-      });
-    }
-  } else if (message.type === 'getPlaybackInfo') {
+  if (message.type === 'getPlaybackInfo') {
     // Popup is requesting playback info
     sendResponse({
       isSpeaking: isSpeaking,
@@ -74,59 +27,39 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       pitch: currentPitch
     });
     return true; // Keep the message channel open for async responses
-  } else if (message.type === 'checkModelStatus') {
-    // Check model status by sending a message to the offscreen document
-    (async () => {
-      try {
-        // Ensure we have an offscreen document
-        await ensureOffscreenDocument();
-
-        // Send a message to the offscreen document to check model status
-        await chrome.runtime.sendMessage({
-          target: 'offscreen',
-          type: 'checkModelStatus'
-        });
-
-        // The response will be handled by the offscreen document
-        // which will send a modelStatus message back to the popup
-        sendResponse({ success: true });
-      } catch (error) {
-        console.error('Error checking model status:', error);
-        sendResponse({ success: false, error });
-      }
-    })();
-    return true; // Keep the message channel open for async responses
   } else if (message.type === 'playTextWithTTS') {
     // Play text with TTS
-    (async () => {
-      try {
-        // Store voice, speed, and pitch settings
-        currentVoice = message.voice || "af_heart";
-        currentSpeed = message.speed || 1.0;
-        currentPitch = message.pitch || 1.0;
+    if (!isSpeaking || !message.speculative) {
+      (async () => {
+        try {
+          // Store voice, speed, and pitch settings
+          currentVoice = message.voice || "af_heart";
+          currentSpeed = message.speed || 1.0;
+          currentPitch = message.pitch || 1.0;
 
-        await readTextWithCustomTTS(message.text, message.voice, message.speed, message.pitch);
+          await readTextWithCustomTTS(message.text, message.voice, message.speed, message.pitch);
 
-        // Set the current state
-        isSpeaking = true;
-        currentUtterance = message.text;
-        currentSendTtsEventId = message.sendTtsEventId || null;
+          // Set the current state
+          isSpeaking = true;
+          currentUtterance = message.text;
+          currentSendTtsEventId = message.sendTtsEventId || null;
 
-        // Notify popup about playback status change
-        chrome.runtime.sendMessage({
-          type: 'playbackStatus',
-          state: 'playing'
-        });
+          // Notify popup about playback status change
+          chrome.runtime.sendMessage({
+            type: 'playbackStatus',
+            state: 'playing'
+          });
 
-        sendResponse({ success: true });
-      } catch (error: any) {
-        console.error('Error playing text with TTS:', error);
-        sendResponse({
-          success: false,
-          error: error.message || 'Unknown error'
-        });
-      }
-    })();
+          sendResponse({ success: true });
+        } catch (error: any) {
+          console.error('Error playing text with TTS:', error);
+          sendResponse({
+            success: false,
+            error: error.message || 'Unknown error'
+          });
+        }
+      })();
+    }
     return true; // Keep the message channel open for async responses
   } else if (message.type === 'pausePlayback') {
     // Pause playback
@@ -575,22 +508,7 @@ chrome.runtime.onInstalled.addListener(async () => {
     enabled: true
   });
 
-  // Initialize the Kokoro model in the offscreen document
-  try {
-    // Ensure we have an offscreen document
-    await ensureOffscreenDocument();
-
-    // Send message to offscreen document to initialize the model
-    // Let the offscreen document determine WebGPU availability
-    await chrome.runtime.sendMessage({
-      target: 'offscreen',
-      type: 'initModel'
-    });
-
-    console.log('Sent init model message to offscreen document');
-  } catch (error) {
-    console.error('Error initializing Kokoro model:', error);
-  }
+  // We do not init model in case the extension is installed but not used
 });
 
 // Listen for context menu clicks

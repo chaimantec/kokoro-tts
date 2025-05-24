@@ -22,6 +22,8 @@ let isPaused = false;
 let playbackStatus: PlaybackStatus = 'idle';
 let currentAudioSource: AudioBufferSourceNode | null = null;
 let currentPlaybackId: string | null = null; // Unique ID for current playback session
+let currentNumChunks: number = 0;
+let currentChunkId: number = 0;
 
 // Keep-alive mechanism
 let keepAliveInterval: number | null = null;
@@ -166,10 +168,18 @@ function handleWorkerMessage(event: MessageEvent): void {
 
     case 'generationComplete':
       console.log(`Speech generation completed! Generated ${data.totalChunks} chunks: playbackId=${data.playbackId}`);
+      if (data.playbackId == currentPlaybackId) {
+        currentNumChunks = data.totalChunks;
+      }
       break;
 
     case 'generationError':
       console.error(`Speech generation error: ${data.error}`);
+      if (data.playbackId == currentPlaybackId) {
+        currentPlaybackId = null;
+        currentNumChunks = 0;
+        currentChunkId = 0;
+      }
       // Send error event
       chrome.runtime.sendMessage({
         type: 'ttsEvent',
@@ -227,21 +237,24 @@ async function playNextInQueue(speed: number = 1.0, pitch: number = 1.0): Promis
       console.log('Chunk playback completed');
       isPlaying = false;
       currentAudioSource = null;
-
+      if (currentPlaybackId === currentChunk.playbackId) {
+        currentChunkId = currentChunk.chunkIndex;
+      }
+      
       // Only proceed to the next chunk if we haven't been stopped
       if (audioQueue.length > 0 && audioContext && audioContext.state !== 'suspended') {
         playNextInQueue(speed, pitch);
       } else {
         console.log('No more chunks to play or playback was stopped');
-
+        
         // If there are no more chunks and we're not suspended, we've completed playback
-        if (audioQueue.length === 0 && audioContext && audioContext.state !== 'suspended') {
-          // Notify background script about playback completion
-          chrome.runtime.sendMessage({
-            type: 'playbackStatus',
-            state: 'idle'
-          });
-        }
+        // if (audioQueue.length === 0 && audioContext && audioContext.state !== 'suspended') {
+        //   // Notify background script about playback completion
+        //   chrome.runtime.sendMessage({
+        //     type: 'playbackStatus',
+        //     state: 'idle'
+        //   });
+        // }
       }
     }, playbackDuration * 1000);
 
@@ -334,6 +347,8 @@ async function playAudioWithKokoro(
 
   // Set as current playback ID
   currentPlaybackId = playbackId;
+  currentNumChunks = 0;
+  currentChunkId = 0;
 
   // Clear any existing audio queue
   audioQueue = [];
@@ -374,7 +389,7 @@ async function playAudioWithKokoro(
         return;
       }
 
-      if (isPlaying || audioQueue.length > 0) {
+      if (isPlaying || audioQueue.length > 0 || !currentNumChunks || (currentPlaybackId && (currentChunkId !== currentNumChunks))) {
         setTimeout(checkPlaybackComplete, 100);
       } else {
         // Send end event only if this session is still current
@@ -382,6 +397,11 @@ async function playAudioWithKokoro(
           type: 'ttsEvent',
           eventType: 'end',
           utterance: text
+        });
+
+        chrome.runtime.sendMessage({
+          type: 'playbackStatus',
+          state: 'idle'
         });
       }
     };
@@ -419,6 +439,8 @@ function stopAudio(notify:boolean) {
   // Invalidate the current playback ID to stop TTS streaming
   const oldPlaybackId = currentPlaybackId;
   currentPlaybackId = null;
+  currentNumChunks = 0;
+  currentChunkId = 0;
   console.log(`Invalidated playback ID: ${oldPlaybackId}`);
 
   // Clear any pending timeouts for chunk playback
@@ -491,22 +513,7 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
   console.log('Offscreen document received message: ' + JSON.stringify(message));
 
   if (message.target === 'offscreen') {
-    if (message.type === 'initModel') {
-      // Check WebGPU availability in the offscreen document
-      const useWebGPU = isWebGPUAvailable();
-
-      // Initialize the model
-      initKokoroModel(useWebGPU)
-        .then(() => {
-          sendResponse({ success: true });
-        })
-        .catch((error) => {
-          sendResponse({ success: false, error: error.message });
-        });
-
-      // Return true to indicate we will send a response asynchronously
-      return true;
-    } else if (message.type === 'playAudio' && message.text) {
+    if (message.type === 'playAudio' && message.text) {
       // Check if model is ready
       if (!isModelReady) {
         try {
@@ -546,37 +553,6 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
       // Resume audio playback
       resumeAudio();
       sendResponse({ success: true });
-      return true;
-    } else if (message.type === 'checkModelStatus') {
-      // Check model status and send back to popup
-      console.log('Checking model status');
-
-      try {
-        if (isModelReady) {
-          // Model is already loaded
-          chrome.runtime.sendMessage({
-            type: 'modelStatus',
-            status: 'ready'
-          });
-        } else {
-          // Model is not loaded yet, but we'll consider it ready
-          // since we're bundling the model files
-          chrome.runtime.sendMessage({
-            type: 'modelStatus',
-            status: 'ready'
-          });
-
-          // Initialize the model in the background
-          const useWebGPU = isWebGPUAvailable();
-          initKokoroModel(useWebGPU);
-        }
-
-        sendResponse({ success: true });
-      } catch (error: any) {
-        console.error('Error checking model status:', error);
-        sendResponse({ success: false, error: error.message });
-      }
-
       return true;
     } else if (message.type === 'stopAudio') {
       stopAudio(true);

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kokoro Speak",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "In-browser Kokoro TTS Engine",
   "permissions": [
     "ttsEngine",

@@ -2,7 +2,7 @@ import { defineConfig, PluginOption } from "vite";
 import removeConsole from "vite-plugin-remove-console";
 import webExtension from "vite-plugin-web-extension";
 
-const debug = true;
+const debug = false;
 
 let plugins: PluginOption[] = []
 

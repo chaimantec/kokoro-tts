@@ -55,7 +55,7 @@ async function loadSettings(): Promise<void> {
 }
 
 // Function to play text using the TTS engine via background script
-async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<void> {
+async function playTextWithTTS(text: string, speculative:boolean, sendTtsEventId?: number): Promise<void> {
   // Model is always ready since it's bundled
   playbackState = PlaybackState.PLAYING;
 
@@ -67,6 +67,7 @@ async function playTextWithTTS(text: string, sendTtsEventId?: number): Promise<v
     await chrome.runtime.sendMessage({
       type: 'playTextWithTTS',
       text: text,
+      speculative: speculative,
       sendTtsEventId: sendTtsEventId,
       voice: currentVoice,
       speed: currentSpeed,
@@ -406,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (playbackState === PlaybackState.IDLE) {
           // We'll check model status in playTextWithTTS function
           console.log('No audio currently playing, reading selected text if model is ready');
-          playTextWithTTS(selectedText);
+          playTextWithTTS(selectedText, true);
         } else {
           console.log('Audio already playing, just pasted text in textbox');
         }
@@ -468,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Play the text using the background script
-    playTextWithTTS(text);
+    playTextWithTTS(text, false);
   });
 
   // Add event listener for the pause button

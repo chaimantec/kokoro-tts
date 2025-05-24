@@ -66,13 +66,10 @@ export interface GetPlaybackInfoMessage {
   type: 'getPlaybackInfo';
 }
 
-export interface CheckModelStatusMessage {
-  type: 'checkModelStatus';
-}
-
 export interface PlayTextWithTTSMessage {
   type: 'playTextWithTTS';
   text: string;
+  speculative: boolean;
   sendTtsEventId?: number;
   voice?: string;
   speed?: number;
@@ -135,11 +132,6 @@ export interface InitModelMessage {
   modelType?: 'webgpu' | 'wasm';
 }
 
-export interface CheckModelStatusMessage {
-  target: 'offscreen';
-  type: 'checkModelStatus';
-}
-
 export interface ModelStatusMessage {
   type: 'modelStatus';
   status: 'loading' | 'ready' | 'error';
@@ -150,7 +142,6 @@ export type BackgroundMessage =
   | SpeechEndedMessage
   | SpeechErrorMessage
   | GetPlaybackInfoMessage
-  | CheckModelStatusMessage
   | PlayTextWithTTSMessage
   | PausePlaybackMessage
   | ResumePlaybackMessage
@@ -163,8 +154,7 @@ export type OffscreenMessage =
   | PauseAudioMessage
   | ResumeAudioMessage
   | StopAudioMessage
-  | InitModelMessage
-  | CheckModelStatusMessage;
+  | InitModelMessage;
 
 // Response types
 export interface PlaybackInfoResponse {
