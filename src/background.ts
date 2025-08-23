@@ -544,6 +544,9 @@ chrome.commands.onCommand.addListener(async (command) => {
       if (selectedText) {
         // Read the selected text using our custom TTS engine
         await readTextWithCustomTTS(selectedText);
+      } else {
+        // No text selected - open the popup instead
+        chrome.action.openPopup();
       }
     } catch (error: any) {
       console.error('Error handling keyboard shortcut:', error);

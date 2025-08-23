@@ -2,6 +2,8 @@
 
 A Chrome extension that provides text-to-speech functionality using the Kokoro 82M v1.0 model. The extension bundles ONNX models for offline TTS processing.
 
+⚠️ IMPORTANT: WebGPU is REQUIRED for good performance! This extension will be very slow without WebGPU support.
+
 [Chrome Web Store Link](https://chromewebstore.google.com/detail/kokoro-speak/apfbmojocfgjmleahkfaphoehbphpigm)
 
 ## Features
@@ -10,7 +12,7 @@ A Chrome extension that provides text-to-speech functionality using the Kokoro 8
 - **WebGPU Acceleration**: Utilizes WebGPU when available for faster processing
 - **Multiple Activation Methods**:
   - Context menu option when text is selected
-  - Keyboard shortcut (Ctrl+Shift+S or ⌘+Shift+S on Mac)
+  - Keyboard shortcut (Alt+Shift+S or Option+Shift+S on Mac)
   - Extension popup with text input
 - **Background Audio Processing**: Uses Chrome's offscreen document API for audio playback
 - **Voice/Speed/Pitch Controls**: Adjustable voice, speed, and pitch settings
@@ -32,9 +34,9 @@ A Chrome extension that provides text-to-speech functionality using the Kokoro 8
    ```
    Downloads ONNX model files (~418MB total) to `public/models/`.
 
-3. Install dependencies:
+3. Install dependencies of kororo.js:
    ```bash
-   npm install
+   cd kokoro.js && npm install && cd ..
    ```
 
 4. Build the extension:
@@ -55,7 +57,7 @@ A Chrome extension that provides text-to-speech functionality using the Kokoro 8
 1. Select text on any webpage
 2. Either:
    - Right-click and select "Read with Kokoro"
-   - Press `Ctrl+Shift+S` (or `⌘+Shift+S` on Mac)
+   - Press `Alt+Shift+S` (or `Option+Shift+S` on Mac)
    - Click extension icon and use the popup interface
 
 ### Technical Notes

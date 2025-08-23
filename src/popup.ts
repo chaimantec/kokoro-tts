@@ -495,4 +495,40 @@ document.addEventListener('DOMContentLoaded', function() {
   if (downloadModelButton) {
     downloadModelButton.style.display = 'none';
   }
+
+  // Load and display keyboard shortcut information
+  loadKeyboardShortcutInfo();
 });
+
+// Function to load and display keyboard shortcut information
+async function loadKeyboardShortcutInfo(): Promise<void> {
+  try {
+    // Get the current keyboard shortcut
+    const commands = await chrome.commands.getAll();
+    const readCommand = commands.find(cmd => cmd.name === 'read-selected-text');
+    
+    const currentShortcutElement = document.getElementById('currentShortcut');
+    const changeShortcutLink = document.getElementById('changeShortcutLink') as HTMLAnchorElement;
+    
+    if (currentShortcutElement && changeShortcutLink) {
+      if (readCommand && readCommand.shortcut) {
+        currentShortcutElement.textContent = readCommand.shortcut;
+      } else {
+        currentShortcutElement.textContent = 'Not set';
+      }
+      
+      // Add click handler for the change shortcut link
+      changeShortcutLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Open Chrome extensions shortcuts page
+        chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+      });
+    }
+  } catch (error) {
+    console.error('Error loading keyboard shortcut info:', error);
+    const currentShortcutElement = document.getElementById('currentShortcut');
+    if (currentShortcutElement) {
+      currentShortcutElement.textContent = 'Error loading shortcut';
+    }
+  }
+}

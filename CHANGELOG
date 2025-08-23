@@ -1,0 +1,8 @@
+1.1.0
+- Emphasize the need for WebGPU.
+- Show keyboard shortcut and link to change keyboard shortcut.
+- Change default shortcut to Alt+Shift+S to avoid conflict in Brave.
+- If shortcut is pressed without selected text, popup will open as feedback.
+
+1.0.0
+- First version

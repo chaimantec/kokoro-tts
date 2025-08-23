@@ -3,17 +3,19 @@ Kokoro Speak: In-Browser Text-to-Speech
 Kokoro Speak is a powerful text-to-speech extension that runs entirely in your browser - no internet 
 connection required, it converts text to natural-sounding speech with customizable voice settings.
 
+⚠️ IMPORTANT: WebGPU is REQUIRED for good performance! This extension will be very slow without WebGPU support.
+
 Kokoro Speak only speaks English.
 
 Features:
 • Fully offline operation - your text never leaves your device
-• Multiple ways to activate: keyboard shortcut (Ctrl+Shift+S), context menu, or popup
+• Multiple ways to activate: keyboard shortcut (Alt+Shift+S), context menu, or popup
 • Context menu integration allows reading any selected text within the browser
 • Registers as a system TTS engine for use with Chrome's built-in accessibility features
 • Adjustable voice, speed, and pitch settings
 • Works on any webpage with selected text
 • TTS engine powered by Kokoro 82M 1.0 model
-• Use WebGPU for fast speech generation
+• REQUIRES WebGPU for acceptable performance - falls back to slow WASM if unavailable
 
 Perfect for accessibility needs, language learning, proofreading, or simply resting your eyes while browsing.
 
