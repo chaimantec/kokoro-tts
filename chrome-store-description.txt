@@ -5,6 +5,8 @@ connection required, it converts text to natural-sounding speech with customizab
 
 ⚠️ IMPORTANT: WebGPU is REQUIRED for good performance! This extension will be very slow without WebGPU support.
 
+⚠️ LARGE DOWNLOAD SIZE: This extension is approximately 420MB due to bundled TTS models.
+
 Kokoro Speak only speaks English.
 
 Features:
