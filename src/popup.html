@@ -1,482 +1,611 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <title>Kokoro Speak</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --primary: #744D26;
-      --primary-dark: #5A3D1E;
-      --primary-light: #8B6D46;
-      --background: #EED5AB;
-      --paper: #FFF8E7;
-      --text: #3A2613;
-      --shadow: rgba(0, 0, 0, 0.1);
-      --radius: 8px;
-      --transition: all 0.3s ease;
-      --error: #D32F2F;
-      --error-light: #FFEBEE;
-      --error-dark: #B71C1C;
-      --success: #2E7D32;
-      --success-light: #E8F5E9;
-    }
+  <head>
+    <title>Kokoro Speak</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --primary: #744d26;
+        --primary-dark: #5a3d1e;
+        --primary-light: #8b6d46;
+        --background: #eed5ab;
+        --paper: #fff8e7;
+        --text: #3a2613;
+        --shadow: rgba(0, 0, 0, 0.1);
+        --radius: 8px;
+        --transition: all 0.3s ease;
+        --error: #d32f2f;
+        --error-light: #ffebee;
+        --error-dark: #b71c1c;
+        --success: #2e7d32;
+        --success-light: #e8f5e9;
+      }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    body {
-      width: 350px;
-      padding: 20px;
-      font-family: 'Libre Baskerville', Georgia, serif;
-      background-color: var(--background);
-      color: var(--text);
-      line-height: 1.5;
-      box-shadow: inset 0 0 30px var(--shadow);
-      position: relative;
-      min-height: 400px;
-    }
+      body {
+        width: 350px;
+        padding: 20px;
+        font-family: 'Libre Baskerville', Georgia, serif;
+        background-color: var(--background);
+        color: var(--text);
+        line-height: 1.5;
+        box-shadow: inset 0 0 30px var(--shadow);
+        position: relative;
+        min-height: 400px;
+      }
 
-    .app-header {
-      margin-bottom: 15px;
-      text-align: center;
-    }
+      .app-header {
+        margin-bottom: 15px;
+        text-align: center;
+      }
 
-    .app-header h1 {
-      margin: 0;
-      font-size: 24px;
-      color: var(--primary);
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-shadow: 1px 1px 2px var(--shadow);
-    }
+      .app-header h1 {
+        margin: 0;
+        font-size: 24px;
+        color: var(--primary);
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-shadow: 1px 1px 2px var(--shadow);
+      }
 
-    .status-container {
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 90%;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      animation: fadeIn 0.3s ease-in-out;
-    }
+      .status-container {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        animation: fadeIn 0.3s ease-in-out;
+      }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-      to { opacity: 1; transform: translateX(-50%) translateY(0); }
-    }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
 
-    @keyframes fadeOut {
-      from { opacity: 1; transform: translateX(-50%) translateY(0); }
-      to { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-    }
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-10px);
+        }
+      }
 
-    .status {
-      padding: 12px;
-      border-radius: var(--radius);
-      background-color: var(--paper);
-      border: 1px solid var(--primary);
-      box-shadow: 0 2px 4px var(--shadow);
-      font-size: 14px;
-      transition: var(--transition);
-    }
+      .status {
+        padding: 12px;
+        border-radius: var(--radius);
+        background-color: var(--paper);
+        border: 1px solid var(--primary);
+        box-shadow: 0 2px 4px var(--shadow);
+        font-size: 14px;
+        transition: var(--transition);
+      }
 
-    .status.error {
-      background-color: var(--error-light);
-      border-color: var(--error);
-      color: var(--error-dark);
-    }
+      .status.error {
+        background-color: var(--error-light);
+        border-color: var(--error);
+        color: var(--error-dark);
+      }
 
-    .status.loading {
-      background-color: #E3F2FD;
-      border-color: #2196F3;
-      color: #0D47A1;
-    }
+      .status.loading {
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+        color: #0d47a1;
+      }
 
+      .status:hover {
+        box-shadow: 0 4px 8px var(--shadow);
+      }
 
+      .input-section {
+        margin-bottom: 15px;
+      }
 
-    .status:hover {
-      box-shadow: 0 4px 8px var(--shadow);
-    }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--primary);
+      }
 
-    .input-section {
-      margin-bottom: 15px;
-    }
+      .voice-controls {
+        margin: 15px 0;
+      }
 
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--primary);
-    }
+      .select-control {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid var(--primary);
+        border-radius: var(--radius);
+        background-color: var(--paper);
+        font-family: 'Libre Baskerville', Georgia, serif;
+        color: var(--text);
+        font-size: 14px;
+        appearance: none;
+        background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23744D26%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E');
+        background-repeat: no-repeat;
+        background-position: right 12px top 50%;
+        background-size: 12px auto;
+        cursor: pointer;
+        transition: var(--transition);
+      }
 
-    .voice-controls {
-      margin: 15px 0;
-    }
+      .select-control:focus {
+        outline: none;
+        border-color: var(--primary-light);
+        box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
+      }
 
-    .select-control {
-      width: 100%;
-      padding: 10px;
-      border: 2px solid var(--primary);
-      border-radius: var(--radius);
-      background-color: var(--paper);
-      font-family: 'Libre Baskerville', Georgia, serif;
-      color: var(--text);
-      font-size: 14px;
-      appearance: none;
-      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23744D26%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.4-12.8z%22%2F%3E%3C%2Fsvg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px top 50%;
-      background-size: 12px auto;
-      cursor: pointer;
-      transition: var(--transition);
-    }
+      .slider-controls {
+        margin: 15px 0;
+      }
 
-    .select-control:focus {
-      outline: none;
-      border-color: var(--primary-light);
-      box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
-    }
+      .slider-group {
+        margin-bottom: 12px;
+      }
 
-    .slider-controls {
-      margin: 15px 0;
-    }
+      .slider {
+        width: 100%;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--primary-light);
+        border-radius: 4px;
+        outline: none;
+        margin-top: 8px;
+        border: 1px solid var(--primary);
+        box-shadow: inset 0 1px 3px var(--shadow);
+      }
 
-    .slider-group {
-      margin-bottom: 12px;
-    }
+      .slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        transition: var(--transition);
+        border: 2px solid var(--paper);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
 
-    .slider {
-      width: 100%;
-      height: 8px;
-      -webkit-appearance: none;
-      appearance: none;
-      background: var(--primary-light);
-      border-radius: 4px;
-      outline: none;
-      margin-top: 8px;
-      border: 1px solid var(--primary);
-      box-shadow: inset 0 1px 3px var(--shadow);
-    }
+      .slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--primary);
+        cursor: pointer;
+        transition: var(--transition);
+        border: 2px solid var(--paper);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
 
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-      transition: var(--transition);
-      border: 2px solid var(--paper);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
+      .slider::-webkit-slider-thumb:hover {
+        background: var(--primary-dark);
+        transform: scale(1.1);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+      }
 
-    .slider::-moz-range-thumb {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      cursor: pointer;
-      transition: var(--transition);
-      border: 2px solid var(--paper);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
+      .slider::-moz-range-thumb:hover {
+        background: var(--primary-dark);
+        transform: scale(1.1);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
+      }
 
-    .slider::-webkit-slider-thumb:hover {
-      background: var(--primary-dark);
-      transform: scale(1.1);
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-    }
+      textarea {
+        width: 100%;
+        height: 100px;
+        padding: 12px;
+        border: 2px solid var(--primary);
+        border-radius: var(--radius);
+        background-color: var(--paper);
+        font-family: 'Libre Baskerville', Georgia, serif;
+        color: var(--text);
+        resize: vertical;
+        transition: var(--transition);
+        font-size: 14px;
+        line-height: 1.5;
+      }
 
-    .slider::-moz-range-thumb:hover {
-      background: var(--primary-dark);
-      transform: scale(1.1);
-      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-    }
+      textarea:focus {
+        outline: none;
+        border-color: var(--primary-light);
+        box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
+      }
 
-    textarea {
-      width: 100%;
-      height: 100px;
-      padding: 12px;
-      border: 2px solid var(--primary);
-      border-radius: var(--radius);
-      background-color: var(--paper);
-      font-family: 'Libre Baskerville', Georgia, serif;
-      color: var(--text);
-      resize: vertical;
-      transition: var(--transition);
-      font-size: 14px;
-      line-height: 1.5;
-    }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 15px;
+        background-color: var(--primary);
+        color: var(--paper);
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-family: 'Libre Baskerville', Georgia, serif;
+        font-weight: 700;
+        text-align: center;
+        transition: var(--transition);
+        box-shadow: 0 2px 4px var(--shadow);
+        font-size: 14px;
+        gap: 8px;
+      }
 
-    textarea:focus {
-      outline: none;
-      border-color: var(--primary-light);
-      box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
-    }
+      .button:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px var(--shadow);
+      }
 
-    .button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 10px 15px;
-      background-color: var(--primary);
-      color: var(--paper);
-      border: none;
-      border-radius: var(--radius);
-      cursor: pointer;
-      font-family: 'Libre Baskerville', Georgia, serif;
-      font-weight: 700;
-      text-align: center;
-      transition: var(--transition);
-      box-shadow: 0 2px 4px var(--shadow);
-      font-size: 14px;
-      gap: 8px;
-    }
+      .button:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px var(--shadow);
+      }
 
-    .button:hover {
-      background-color: var(--primary-dark);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px var(--shadow);
-    }
+      .full-width {
+        width: 100%;
+      }
 
-    .button:active {
-      transform: translateY(0);
-      box-shadow: 0 1px 2px var(--shadow);
-    }
+      .playback-controls-container {
+        margin-top: 15px;
+        margin-bottom: 15px;
+      }
 
-    .full-width {
-      width: 100%;
-    }
+      .playback-controls {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
 
-    .playback-controls-container {
-      margin-top: 15px;
-      margin-bottom: 15px;
-    }
+      .playback-controls button {
+        height: 44px;
+      }
 
-    .playback-controls {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-    }
+      .button-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+      }
 
-    .playback-controls button {
-      height: 44px;
-    }
+      svg {
+        flex-shrink: 0;
+      }
 
-    .button-content {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-    }
+      #playButton,
+      #pauseButton,
+      #resumeButton {
+        background-image: linear-gradient(to right, var(--primary), var(--primary-light));
+      }
 
-    svg {
-      flex-shrink: 0;
-    }
+      #playButton:hover,
+      #pauseButton:hover,
+      #resumeButton:hover {
+        background-image: linear-gradient(to right, var(--primary-dark), var(--primary));
+      }
 
-    #playButton, #pauseButton, #resumeButton {
-      background-image: linear-gradient(to right, var(--primary), var(--primary-light));
-    }
+      #stopButton,
+      #stopButtonAlt {
+        background-color: #9e7b4f;
+      }
 
-    #playButton:hover, #pauseButton:hover, #resumeButton:hover {
-      background-image: linear-gradient(to right, var(--primary-dark), var(--primary));
-    }
+      #stopButton:hover,
+      #stopButtonAlt:hover {
+        background-color: #876a43;
+      }
 
-    #stopButton, #stopButtonAlt {
-      background-color: #9E7B4F;
-    }
+      /* For the full-width play button */
+      .full-width {
+        grid-column: span 2;
+      }
 
-    #stopButton:hover, #stopButtonAlt:hover {
-      background-color: #876A43;
-    }
+      .help-section,
+      .settings-section {
+        margin-top: 20px;
+        border: 1px solid var(--primary);
+        border-radius: var(--radius);
+        padding: 15px;
+        background-color: rgba(116, 77, 38, 0.05);
+        box-shadow: 0 2px 4px var(--shadow);
+      }
 
-    /* For the full-width play button */
-    .full-width {
-      grid-column: span 2;
-    }
+      .settings-section {
+        margin-top: 15px;
+        margin-bottom: 15px;
+      }
 
-    .help-section, .settings-section {
-      margin-top: 20px;
-      border: 1px solid var(--primary);
-      border-radius: var(--radius);
-      padding: 15px;
-      background-color: rgba(116, 77, 38, 0.05);
-      box-shadow: 0 2px 4px var(--shadow);
-    }
+      .help-title,
+      .settings-title {
+        margin: 0 0 10px 0;
+        font-weight: 700;
+        font-size: 15px;
+        color: var(--primary);
+      }
 
-    .settings-section {
-      margin-top: 15px;
-      margin-bottom: 15px;
-    }
+      ol,
+      ul {
+        padding-left: 20px;
+      }
 
-    .help-title, .settings-title {
-      margin: 0 0 10px 0;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--primary);
-    }
+      li {
+        margin-bottom: 6px;
+        font-size: 13px;
+      }
 
-    ol, ul {
-      padding-left: 20px;
-    }
+      ul li {
+        margin-bottom: 4px;
+      }
 
-    li {
-      margin-bottom: 6px;
-      font-size: 13px;
-    }
+      kbd {
+        background-color: var(--paper);
+        border: 1px solid var(--primary);
+        border-radius: 3px;
+        padding: 2px 5px;
+        font-family: monospace;
+        font-size: 12px;
+        box-shadow: 1px 1px 1px var(--shadow);
+      }
 
-    ul li {
-      margin-bottom: 4px;
-    }
+      .toggle-control {
+        margin: 10px 0;
+      }
 
-    kbd {
-      background-color: var(--paper);
-      border: 1px solid var(--primary);
-      border-radius: 3px;
-      padding: 2px 5px;
-      font-family: monospace;
-      font-size: 12px;
-      box-shadow: 1px 1px 1px var(--shadow);
-    }
-  </style>
-</head>
-<body>
-  <div class="status-container" id="statusContainer" style="display: none;">
-    <div class="status" id="status">
-      <strong id="statusType">Error:</strong> <span id="statusMessage">No errors</span>
+      .toggle-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        font-size: 14px;
+        margin-bottom: 5px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        width: 50px;
+        height: 26px;
+      }
+
+      .toggle-switch input[type='checkbox'] {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: var(--transition);
+        border-radius: 26px;
+        border: 2px solid var(--primary);
+      }
+
+      .toggle-slider:before {
+        position: absolute;
+        content: '';
+        height: 18px;
+        width: 18px;
+        left: 2px;
+        bottom: 2px;
+        background-color: var(--paper);
+        transition: var(--transition);
+        border-radius: 50%;
+      }
+
+      .toggle-switch input:checked + .toggle-slider {
+        background-color: var(--primary);
+      }
+
+      .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(24px);
+      }
+
+      .toggle-description {
+        font-size: 12px;
+        color: var(--text);
+        opacity: 0.8;
+        margin-top: 5px;
+        line-height: 1.4;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="status-container" id="statusContainer" style="display: none">
+      <div class="status" id="status">
+        <strong id="statusType">Error:</strong>
+        <span id="statusMessage">No errors</span>
+      </div>
     </div>
-  </div>
 
+    <header class="app-header">
+      <h1>Kokoro Speak</h1>
+    </header>
 
+    <!-- Model is now bundled, no download message needed -->
 
-  <header class="app-header">
-    <h1>Kokoro Speak</h1>
-  </header>
+    <div class="input-section">
+      <label for="textInput">Enter or paste text to read:</label>
+      <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
 
-  <!-- Model is now bundled, no download message needed -->
+      <div class="playback-controls-container">
+        <!-- Play state (initial state) -->
+        <div id="playControls" class="playback-controls">
+          <button class="button full-width" id="playButton">
+            <div class="button-content">
+              <svg class="play-icon" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M8 5v14l11-7z" />
+              </svg>
+              <span>Play</span>
+            </div>
+          </button>
+        </div>
 
-  <div class="input-section">
-    <label for="textInput">Enter or paste text to read:</label>
-    <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
+        <!-- Playing state (pause/stop buttons) -->
+        <div id="pauseStopControls" class="playback-controls" style="display: none">
+          <button class="button" id="pauseButton">
+            <div class="button-content">
+              <svg class="pause-icon" viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+              <span>Pause</span>
+            </div>
+          </button>
+          <button class="button" id="stopButton">
+            <div class="button-content">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M6 6h12v12H6z" />
+              </svg>
+              <span>Stop</span>
+            </div>
+          </button>
+        </div>
 
-    <div class="playback-controls-container">
-      <!-- Play state (initial state) -->
-      <div id="playControls" class="playback-controls">
-        <button class="button full-width" id="playButton">
-          <div class="button-content">
-            <svg class="play-icon" viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M8 5v14l11-7z"/>
-            </svg>
-            <span>Play</span>
-          </div>
-        </button>
+        <!-- Paused state (resume/stop buttons) -->
+        <div id="resumeStopControls" class="playback-controls" style="display: none">
+          <button class="button" id="resumeButton">
+            <div class="button-content">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M8 5v14l11-7z" />
+              </svg>
+              <span>Resume</span>
+            </div>
+          </button>
+          <button class="button" id="stopButtonAlt">
+            <div class="button-content">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M6 6h12v12H6z" />
+              </svg>
+              <span>Stop</span>
+            </div>
+          </button>
+        </div>
       </div>
 
-      <!-- Playing state (pause/stop buttons) -->
-      <div id="pauseStopControls" class="playback-controls" style="display: none;">
-        <button class="button" id="pauseButton">
-          <div class="button-content">
-            <svg class="pause-icon" viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-            </svg>
-            <span>Pause</span>
-          </div>
-        </button>
-        <button class="button" id="stopButton">
-          <div class="button-content">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M6 6h12v12H6z"/>
-            </svg>
-            <span>Stop</span>
-          </div>
-        </button>
-      </div>
+      <div class="settings-section">
+        <p class="settings-title">Voice Settings:</p>
 
-      <!-- Paused state (resume/stop buttons) -->
-      <div id="resumeStopControls" class="playback-controls" style="display: none;">
-        <button class="button" id="resumeButton">
-          <div class="button-content">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M8 5v14l11-7z"/>
-            </svg>
-            <span>Resume</span>
+        <div class="voice-controls">
+          <label for="voiceSelect">Voice:</label>
+          <select id="voiceSelect" class="select-control">
+            <!-- Will be populated from JavaScript -->
+          </select>
+        </div>
+
+        <div class="slider-controls">
+          <div class="slider-group">
+            <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
+            <input
+              type="range"
+              id="speedSlider"
+              min="0.5"
+              max="2.0"
+              step="0.1"
+              value="1.0"
+              class="slider"
+            />
           </div>
-        </button>
-        <button class="button" id="stopButtonAlt">
-          <div class="button-content">
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M6 6h12v12H6z"/>
-            </svg>
-            <span>Stop</span>
+
+          <div class="slider-group">
+            <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
+            <input
+              type="range"
+              id="pitchSlider"
+              min="0.5"
+              max="2.0"
+              step="0.1"
+              value="1.0"
+              class="slider"
+            />
           </div>
-        </button>
+        </div>
       </div>
     </div>
 
     <div class="settings-section">
-      <p class="settings-title">Voice Settings:</p>
-
-      <div class="voice-controls">
-        <label for="voiceSelect">Voice:</label>
-        <select id="voiceSelect" class="select-control">
-          <!-- Will be populated from JavaScript -->
-        </select>
-      </div>
-
-      <div class="slider-controls">
-        <div class="slider-group">
-          <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
-          <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
-        </div>
-
-        <div class="slider-group">
-          <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
-          <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider">
-        </div>
+      <p class="settings-title">Performance Settings:</p>
+      <div class="toggle-control">
+        <label for="webgpuToggle" class="toggle-label">
+          <span>Use WebGPU Acceleration</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="webgpuToggle" checked />
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <p class="toggle-description">
+          Enable for better performance. Disable if you experience issues.
+        </p>
       </div>
     </div>
-  </div>
 
-  <div class="settings-section">
-    <p class="settings-title">Keyboard Shortcut:</p>
-    <div id="shortcutInfo">
-      <p>Current shortcut: <span id="currentShortcut">Loading...</span></p>
-      <p><a href="#" id="changeShortcutLink" style="color: var(--primary); text-decoration: underline;">
-        Change keyboard shortcut
-      </a></p>
+    <div class="settings-section">
+      <p class="settings-title">Keyboard Shortcut:</p>
+      <div id="shortcutInfo">
+        <p>Current shortcut: <span id="currentShortcut">Loading...</span></p>
+        <p>
+          <a
+            href="#"
+            id="changeShortcutLink"
+            style="color: var(--primary); text-decoration: underline"
+          >
+            Change keyboard shortcut
+          </a>
+        </p>
+      </div>
     </div>
-  </div>
 
-  <div class="help-section">
-    <p class="help-title">How to use:</p>
-    <ol>
-      <li>Enter or paste text in the box above and click "Play" button, or</li>
-      <li>Select text on any webpage and either:
-        <ul>
-          <li>Click the extension icon in the toolbar to automatically read the selected text</li>
-          <li>Right-click on the selected text and choose "Read with Kokoro" from the context menu</li>
-          <li>Use the keyboard shortcut (see above)</li>
-        </ul>
-      </li>
-      <li>Adjust voice, speed, and pitch settings as desired:
-        <ul>
-          <li>Settings are saved automatically and will be used for future playback</li>
-        </ul>
-      </li>
-    </ol>
-  </div>
+    <div class="help-section">
+      <p class="help-title">How to use:</p>
+      <ol>
+        <li>Enter or paste text in the box above and click "Play" button, or</li>
+        <li>
+          Select text on any webpage and either:
+          <ul>
+            <li>Click the extension icon in the toolbar to automatically read the selected text</li>
+            <li>
+              Right-click on the selected text and choose "Read with Kokoro" from the context menu
+            </li>
+            <li>Use the keyboard shortcut (see above)</li>
+          </ul>
+        </li>
+        <li>
+          Adjust voice, speed, and pitch settings as desired:
+          <ul>
+            <li>Settings are saved automatically and will be used for future playback</li>
+          </ul>
+        </li>
+      </ol>
+    </div>
 
-  <script src="popup.ts" type="module"></script>
-</body>
+    <script src="popup.ts" type="module"></script>
+  </body>
 </html>

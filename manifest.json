@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kokoro Speak",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "In-browser Kokoro TTS Engine",
   "permissions": [
     "ttsEngine",
@@ -17,11 +17,7 @@
       {
         "voice_name": "Kokoro Speak",
         "lang": "en-US",
-        "event_types": [
-          "start",
-          "end",
-          "error"
-        ]
+        "event_types": ["start", "end", "error"]
       }
     ]
   },
@@ -47,13 +43,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "soundtouch-worklet.js",
-        "onnxruntime-web/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["soundtouch-worklet.js", "onnxruntime-web/*"],
+      "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {

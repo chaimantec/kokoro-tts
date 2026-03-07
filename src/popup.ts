@@ -12,13 +12,15 @@ let playbackState: PlaybackState = PlaybackState.IDLE;
 let currentVoice: string = DEFAULT_SETTINGS.voice;
 let currentSpeed: number = DEFAULT_SETTINGS.speed;
 let currentPitch: number = DEFAULT_SETTINGS.pitch;
+let currentUseWebGPU: boolean = DEFAULT_SETTINGS.useWebGPU;
 
 // Function to save settings to Chrome storage
 async function saveSettings(): Promise<void> {
   const settings: TTSSettings = {
     voice: currentVoice,
     speed: currentSpeed,
-    pitch: currentPitch
+    pitch: currentPitch,
+    useWebGPU: currentUseWebGPU
   };
 
   try {
@@ -37,12 +39,14 @@ async function loadSettings(): Promise<void> {
       currentVoice = result.ttsSettings.voice || DEFAULT_SETTINGS.voice;
       currentSpeed = result.ttsSettings.speed || DEFAULT_SETTINGS.speed;
       currentPitch = result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch;
+      currentUseWebGPU = result.ttsSettings.useWebGPU ?? DEFAULT_SETTINGS.useWebGPU;
       console.log('Settings loaded:', result.ttsSettings);
     } else {
       // Use default settings if none are saved
       currentVoice = DEFAULT_SETTINGS.voice;
       currentSpeed = DEFAULT_SETTINGS.speed;
       currentPitch = DEFAULT_SETTINGS.pitch;
+      currentUseWebGPU = DEFAULT_SETTINGS.useWebGPU;
       console.log('Using default settings');
     }
   } catch (error) {
@@ -51,11 +55,12 @@ async function loadSettings(): Promise<void> {
     currentVoice = DEFAULT_SETTINGS.voice;
     currentSpeed = DEFAULT_SETTINGS.speed;
     currentPitch = DEFAULT_SETTINGS.pitch;
+    currentUseWebGPU = DEFAULT_SETTINGS.useWebGPU;
   }
 }
 
 // Function to play text using the TTS engine via background script
-async function playTextWithTTS(text: string, speculative:boolean, sendTtsEventId?: number): Promise<void> {
+async function playTextWithTTS(text: string, speculative: boolean, sendTtsEventId?: number): Promise<void> {
   // Model is always ready since it's bundled
   playbackState = PlaybackState.PLAYING;
 
@@ -305,10 +310,9 @@ async function getSelectedTextFromActiveTab(): Promise<string> {
     }
 
     const tab = tabs[0];
-    const isInjectable = tab.url &&
-      (tab.url.startsWith('http:') ||
-      tab.url.startsWith('https:') ||
-      tab.url.startsWith('file:')) &&
+    const isInjectable =
+      tab.url &&
+      (tab.url.startsWith('http:') || tab.url.startsWith('https:') || tab.url.startsWith('file:')) &&
       tab.status === 'complete';
 
     if (!isInjectable) {
@@ -330,7 +334,7 @@ async function getSelectedTextFromActiveTab(): Promise<string> {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const textInput = document.getElementById('textInput') as HTMLTextAreaElement;
   const voiceSelect = document.getElementById('voiceSelect') as HTMLSelectElement;
   const speedSlider = document.getElementById('speedSlider') as HTMLInputElement;
@@ -343,6 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const stopButton = document.getElementById('stopButton') as HTMLButtonElement;
   const stopButtonAlt = document.getElementById('stopButtonAlt') as HTMLButtonElement;
   const downloadModelButton = document.getElementById('downloadModelButton') as HTMLButtonElement;
+  const webgpuToggle = document.getElementById('webgpuToggle') as HTMLInputElement;
 
   console.log('Kokoro Speak TTS Engine popup opened');
 
@@ -354,6 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
     speedValue.textContent = currentSpeed.toFixed(1);
     pitchSlider.value = currentPitch.toString();
     pitchValue.textContent = currentPitch.toFixed(1);
+    webgpuToggle.checked = currentUseWebGPU;
 
     // Now check if there is text playing when popup opens (this will override settings if needed)
     chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
@@ -418,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
   })();
 
   // Populate voice selection dropdown
-  AVAILABLE_VOICES.forEach(voice => {
+  AVAILABLE_VOICES.forEach((voice) => {
     const option = document.createElement('option');
     option.value = voice.id;
     option.textContent = voice.name;
@@ -429,36 +435,67 @@ document.addEventListener('DOMContentLoaded', function() {
   voiceSelect.value = currentVoice;
 
   // Add event listeners for voice, speed, and pitch controls
-  voiceSelect.addEventListener('change', function() {
+  voiceSelect.addEventListener('change', function () {
     currentVoice = this.value;
     saveSettings(); // Save when changed
   });
 
-  speedSlider.addEventListener('input', function() {
+  speedSlider.addEventListener('input', function () {
     currentSpeed = parseFloat(this.value);
     speedValue.textContent = currentSpeed.toFixed(1);
   });
 
-  speedSlider.addEventListener('change', function() {
+  speedSlider.addEventListener('change', function () {
     // Save when slider is released
     saveSettings();
   });
 
-  pitchSlider.addEventListener('input', function() {
+  pitchSlider.addEventListener('input', function () {
     currentPitch = parseFloat(this.value);
     pitchValue.textContent = currentPitch.toFixed(1);
   });
 
-  pitchSlider.addEventListener('change', function() {
+  pitchSlider.addEventListener('change', function () {
     // Save when slider is released
     saveSettings();
+  });
+
+  // Add event listener for WebGPU toggle
+  webgpuToggle.addEventListener('change', async function () {
+    const newUseWebGPU = this.checked;
+
+    if (newUseWebGPU !== currentUseWebGPU) {
+      currentUseWebGPU = newUseWebGPU;
+
+      // Save the setting
+      await saveSettings();
+
+      // Show loading status
+      showStatus('Reinitializing model with new settings...', 'loading', false);
+
+      // Send message to background to reinitialize model
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'reinitModel',
+          useWebGPU: currentUseWebGPU
+        });
+
+        // Show success message
+        showStatus('Model reinitialized successfully', 'loading', true);
+      } catch (error: any) {
+        // Show error and revert toggle
+        showErrorStatus(`Failed to reinitialize model: ${error.message}`);
+        this.checked = !newUseWebGPU;
+        currentUseWebGPU = !newUseWebGPU;
+      }
+    }
   });
 
   // Initialize playback controls state
   updatePlaybackControls();
 
   // Add event listener for the play button
-  playButton.addEventListener('click', function() {
+  playButton.addEventListener('click', function () {
     // Get the text from the input field
     const text = textInput.value.trim();
 
@@ -473,21 +510,21 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Add event listener for the pause button
-  pauseButton.addEventListener('click', function() {
+  pauseButton.addEventListener('click', function () {
     pausePlayback();
   });
 
   // Add event listener for the resume button
-  resumeButton.addEventListener('click', function() {
+  resumeButton.addEventListener('click', function () {
     resumePlayback();
   });
 
   // Add event listeners for both stop buttons
-  stopButton.addEventListener('click', function() {
+  stopButton.addEventListener('click', function () {
     stopPlayback();
   });
 
-  stopButtonAlt.addEventListener('click', function() {
+  stopButtonAlt.addEventListener('click', function () {
     stopPlayback();
   });
 
@@ -505,18 +542,18 @@ async function loadKeyboardShortcutInfo(): Promise<void> {
   try {
     // Get the current keyboard shortcut
     const commands = await chrome.commands.getAll();
-    const readCommand = commands.find(cmd => cmd.name === 'read-selected-text');
-    
+    const readCommand = commands.find((cmd) => cmd.name === 'read-selected-text');
+
     const currentShortcutElement = document.getElementById('currentShortcut');
     const changeShortcutLink = document.getElementById('changeShortcutLink') as HTMLAnchorElement;
-    
+
     if (currentShortcutElement && changeShortcutLink) {
       if (readCommand && readCommand.shortcut) {
         currentShortcutElement.textContent = readCommand.shortcut;
       } else {
         currentShortcutElement.textContent = 'Not set';
       }
-      
+
       // Add click handler for the change shortcut link
       changeShortcutLink.addEventListener('click', (e) => {
         e.preventDefault();

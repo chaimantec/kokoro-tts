@@ -1,8 +1,4 @@
-import {
-  BackgroundMessage,
-  TTSSettings,
-  DEFAULT_SETTINGS
-} from './types';
+import { BackgroundMessage, TTSSettings, DEFAULT_SETTINGS } from './types';
 
 // Global variables to track state
 let isSpeaking = false;
@@ -33,7 +29,7 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       (async () => {
         try {
           // Store voice, speed, and pitch settings
-          currentVoice = message.voice || "af_heart";
+          currentVoice = message.voice || 'af_heart';
           currentSpeed = message.speed || 1.0;
           currentPitch = message.pitch || 1.0;
 
@@ -153,16 +149,40 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       }
     })();
     return true; // Keep the message channel open for async responses
+  } else if (message.type === 'reinitModel') {
+    // Reinitialize the model with new WebGPU setting
+    (async () => {
+      try {
+        // Ensure we have an offscreen document
+        await ensureOffscreenDocument();
+
+        // Send message to offscreen document to reinitialize model
+        await chrome.runtime.sendMessage({
+          target: 'offscreen',
+          type: 'reinitModel',
+          useWebGPU: message.useWebGPU
+        });
+
+        sendResponse({ success: true });
+      } catch (error: any) {
+        console.error('Error reinitializing model:', error);
+        sendResponse({
+          success: false,
+          error: error.message || 'Unknown error'
+        });
+      }
+    })();
+    return true; // Keep the message channel open for async responses
   } else if (message.type === 'modelStatus') {
     // Model status update from offscreen document
     console.log('Received model status update:', message);
 
     if (message.status === 'ready') {
       console.log('Kokoro model is ready');
-      chrome.contextMenus.update("readSelectedText", { enabled: true });
+      chrome.contextMenus.update('readSelectedText', { enabled: true });
     } else if (message.status === 'error') {
       console.error('Error loading Kokoro model:', message.errorMessage);
-      chrome.contextMenus.update("readSelectedText", { enabled: false });
+      chrome.contextMenus.update('readSelectedText', { enabled: false });
     }
     // No need to handle 'download_required' as model is always bundled
   } else if (message.type === 'ttsEvent') {
@@ -174,10 +194,10 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       if (isSpeaking && currentUtterance === message.utterance) {
         // Send end event to Chrome TTS if this was triggered by the TTS API
         if (currentSendTtsEventId) {
-          chrome.ttsEngine.sendTtsEvent(
-            currentSendTtsEventId,
-            { type: 'end', charIndex: currentUtterance.length }
-          );
+          chrome.ttsEngine.sendTtsEvent(currentSendTtsEventId, {
+            type: 'end',
+            charIndex: currentUtterance.length
+          });
         }
 
         // Reset state
@@ -196,13 +216,10 @@ chrome.runtime.onMessage.addListener((message: BackgroundMessage, _sender, sendR
       if (isSpeaking) {
         // Send error event to Chrome TTS if this was triggered by the TTS API
         if (currentSendTtsEventId) {
-          chrome.ttsEngine.sendTtsEvent(
-            currentSendTtsEventId,
-            {
-              type: 'error',
-              errorMessage: message.errorMessage || 'Unknown error'
-            }
-          );
+          chrome.ttsEngine.sendTtsEvent(currentSendTtsEventId, {
+            type: 'error',
+            errorMessage: message.errorMessage || 'Unknown error'
+          });
         }
 
         // Reset state
@@ -266,14 +283,14 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
     await ensureOffscreenDocument();
 
     // Send message to offscreen document to play audio with saved settings
-    // Let the offscreen document determine WebGPU availability
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
       text: utterance,
       voice: settings.voice,
       speed: settings.speed,
-      pitch: settings.pitch
+      pitch: settings.pitch,
+      useWebGPU: settings.useWebGPU
     });
 
     // Store the current settings
@@ -370,7 +387,8 @@ async function loadSettings(): Promise<TTSSettings> {
       return {
         voice: result.ttsSettings.voice || DEFAULT_SETTINGS.voice,
         speed: result.ttsSettings.speed || DEFAULT_SETTINGS.speed,
-        pitch: result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch
+        pitch: result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch,
+        useWebGPU: result.ttsSettings.useWebGPU ?? DEFAULT_SETTINGS.useWebGPU
       };
     }
   } catch (error) {
@@ -391,13 +409,23 @@ async function readTextWithCustomTTS(
 ): Promise<void> {
   console.log('Reading text with custom TTS:', text, { voice, speed, pitch });
 
+  // Load settings to get useWebGPU, even if other parameters are provided
+  const settings = await loadSettings();
+  let useWebGPU = settings.useWebGPU;
+
   // If no parameters are provided, load from storage
   if (voice === undefined && speed === undefined && pitch === undefined) {
-    const settings = await loadSettings();
     voice = settings.voice;
     speed = settings.speed;
     pitch = settings.pitch;
-    console.log('Using saved settings:', { voice, speed, pitch });
+    console.log('Using saved settings:', { voice, speed, pitch, useWebGPU });
+  } else {
+    console.log('Using provided parameters with saved useWebGPU:', {
+      voice,
+      speed,
+      pitch,
+      useWebGPU
+    });
   }
 
   console.log('Are we speaking?', isSpeaking);
@@ -431,14 +459,14 @@ async function readTextWithCustomTTS(
     await ensureOffscreenDocument();
 
     // Send message to offscreen document to play audio
-    // Let the offscreen document determine WebGPU availability
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
       text: text,
       voice: voice || undefined,
       speed: speed || undefined,
-      pitch: pitch || undefined
+      pitch: pitch || undefined,
+      useWebGPU: useWebGPU
     });
 
     console.log('Sent play audio message to offscreen document');
@@ -502,9 +530,9 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   // Create context menu item for reading selected text
   chrome.contextMenus.create({
-    id: "readSelectedText",
-    title: "Read with Kokoro",
-    contexts: ["selection"],
+    id: 'readSelectedText',
+    title: 'Read with Kokoro',
+    contexts: ['selection'],
     enabled: true
   });
 
@@ -513,7 +541,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // Listen for context menu clicks
 chrome.contextMenus.onClicked.addListener(async (info) => {
-  if (info.menuItemId === "readSelectedText" && info.selectionText) {
+  if (info.menuItemId === 'readSelectedText' && info.selectionText) {
     // Read the selected text using our custom TTS engine
     await readTextWithCustomTTS(info.selectionText);
   }
@@ -523,10 +551,13 @@ chrome.contextMenus.onClicked.addListener(async (info) => {
 chrome.commands.onCommand.addListener(async (command) => {
   console.log('Command received:', command);
 
-  if (command === "read-selected-text") {
+  if (command === 'read-selected-text') {
     try {
       // Get the active tab
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+      const tabs = await chrome.tabs.query({
+        active: true,
+        currentWindow: true
+      });
       if (tabs.length === 0) {
         console.error('No active tab found');
         return;

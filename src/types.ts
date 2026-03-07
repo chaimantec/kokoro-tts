@@ -40,13 +40,15 @@ export interface TTSSettings {
   voice: string;
   speed: number;
   pitch: number;
+  useWebGPU: boolean;
 }
 
 // Default settings
 export const DEFAULT_SETTINGS: TTSSettings = {
   voice: 'af_heart',
   speed: 1.0,
-  pitch: 1.0
+  pitch: 1.0,
+  useWebGPU: true
 };
 
 // Message types
@@ -88,6 +90,11 @@ export interface StopPlaybackMessage {
   type: 'stopPlayback';
 }
 
+export interface ReinitModelMessage {
+  type: 'reinitModel';
+  useWebGPU: boolean;
+}
+
 export type PlaybackStatus = 'idle' | 'playing' | 'paused';
 
 export interface PlaybackStatusMessage {
@@ -109,6 +116,7 @@ export interface PlayAudioMessage {
   voice?: string;
   speed?: number;
   pitch?: number;
+  useWebGPU?: boolean;
 }
 
 export interface PauseAudioMessage {
@@ -132,6 +140,12 @@ export interface InitModelMessage {
   modelType?: 'webgpu' | 'wasm';
 }
 
+export interface ReinitModelOffscreenMessage {
+  target: 'offscreen';
+  type: 'reinitModel';
+  useWebGPU: boolean;
+}
+
 export interface ModelStatusMessage {
   type: 'modelStatus';
   status: 'loading' | 'ready' | 'error';
@@ -146,6 +160,7 @@ export type BackgroundMessage =
   | PausePlaybackMessage
   | ResumePlaybackMessage
   | StopPlaybackMessage
+  | ReinitModelMessage
   | TtsEventMessage
   | ModelStatusMessage;
 
@@ -154,7 +169,8 @@ export type OffscreenMessage =
   | PauseAudioMessage
   | ResumeAudioMessage
   | StopAudioMessage
-  | InitModelMessage;
+  | InitModelMessage
+  | ReinitModelOffscreenMessage;
 
 // Response types
 export interface PlaybackInfoResponse {
