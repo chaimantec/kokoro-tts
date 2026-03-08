@@ -1,6 +1,8 @@
 1.2.0
 
 - Add WebGPU option to settings.
+- Add number of threads option to settings.
+- Improve wasm performance
 
   1.1.0
 

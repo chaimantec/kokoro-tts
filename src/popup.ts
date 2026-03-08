@@ -13,6 +13,7 @@ let currentVoice: string = DEFAULT_SETTINGS.voice;
 let currentSpeed: number = DEFAULT_SETTINGS.speed;
 let currentPitch: number = DEFAULT_SETTINGS.pitch;
 let currentUseWebGPU: boolean = DEFAULT_SETTINGS.useWebGPU;
+let currentNumThreads: number = DEFAULT_SETTINGS.numThreads;
 
 // Function to save settings to Chrome storage
 async function saveSettings(): Promise<void> {
@@ -20,7 +21,8 @@ async function saveSettings(): Promise<void> {
     voice: currentVoice,
     speed: currentSpeed,
     pitch: currentPitch,
-    useWebGPU: currentUseWebGPU
+    useWebGPU: currentUseWebGPU,
+    numThreads: currentNumThreads
   };
 
   try {
@@ -40,6 +42,7 @@ async function loadSettings(): Promise<void> {
       currentSpeed = result.ttsSettings.speed || DEFAULT_SETTINGS.speed;
       currentPitch = result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch;
       currentUseWebGPU = result.ttsSettings.useWebGPU ?? DEFAULT_SETTINGS.useWebGPU;
+      currentNumThreads = result.ttsSettings.numThreads ?? DEFAULT_SETTINGS.numThreads;
       console.log('Settings loaded:', result.ttsSettings);
     } else {
       // Use default settings if none are saved
@@ -47,6 +50,7 @@ async function loadSettings(): Promise<void> {
       currentSpeed = DEFAULT_SETTINGS.speed;
       currentPitch = DEFAULT_SETTINGS.pitch;
       currentUseWebGPU = DEFAULT_SETTINGS.useWebGPU;
+      currentNumThreads = DEFAULT_SETTINGS.numThreads;
       console.log('Using default settings');
     }
   } catch (error) {
@@ -56,6 +60,7 @@ async function loadSettings(): Promise<void> {
     currentSpeed = DEFAULT_SETTINGS.speed;
     currentPitch = DEFAULT_SETTINGS.pitch;
     currentUseWebGPU = DEFAULT_SETTINGS.useWebGPU;
+    currentNumThreads = DEFAULT_SETTINGS.numThreads;
   }
 }
 
@@ -348,6 +353,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const stopButtonAlt = document.getElementById('stopButtonAlt') as HTMLButtonElement;
   const downloadModelButton = document.getElementById('downloadModelButton') as HTMLButtonElement;
   const webgpuToggle = document.getElementById('webgpuToggle') as HTMLInputElement;
+  const numThreadsInput = document.getElementById('numThreadsInput') as HTMLInputElement;
 
   console.log('Kokoro Speak TTS Engine popup opened');
 
@@ -360,6 +366,9 @@ document.addEventListener('DOMContentLoaded', function () {
     pitchSlider.value = currentPitch.toString();
     pitchValue.textContent = currentPitch.toFixed(1);
     webgpuToggle.checked = currentUseWebGPU;
+    numThreadsInput.value = currentNumThreads.toString();
+    // Set initial disabled state based on WebGPU
+    numThreadsInput.disabled = currentUseWebGPU;
 
     // Now check if there is text playing when popup opens (this will override settings if needed)
     chrome.runtime.sendMessage({ type: 'getPlaybackInfo' }, (response: PlaybackInfoResponse) => {
@@ -464,6 +473,9 @@ document.addEventListener('DOMContentLoaded', function () {
   webgpuToggle.addEventListener('change', async function () {
     const newUseWebGPU = this.checked;
 
+    // Enable/disable numThreads input based on WebGPU state
+    numThreadsInput.disabled = newUseWebGPU;
+
     if (newUseWebGPU !== currentUseWebGPU) {
       currentUseWebGPU = newUseWebGPU;
 
@@ -477,7 +489,8 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         await chrome.runtime.sendMessage({
           type: 'reinitModel',
-          useWebGPU: currentUseWebGPU
+          useWebGPU: currentUseWebGPU,
+          numThreads: currentNumThreads
         });
 
         // Show success message
@@ -487,7 +500,57 @@ document.addEventListener('DOMContentLoaded', function () {
         showErrorStatus(`Failed to reinitialize model: ${error.message}`);
         this.checked = !newUseWebGPU;
         currentUseWebGPU = !newUseWebGPU;
+        numThreadsInput.disabled = currentUseWebGPU;
       }
+    }
+  });
+
+  // Add event listener for numThreads input
+  numThreadsInput.addEventListener('input', function () {
+    const value = parseInt(this.value, 10);
+
+    // Validate: only allow non-negative integers
+    if (isNaN(value) || value < 0) {
+      this.value = currentNumThreads.toString();
+      return;
+    }
+
+    currentNumThreads = value;
+  });
+
+  numThreadsInput.addEventListener('change', async function () {
+    // Validate again on change
+    const value = parseInt(this.value, 10);
+
+    if (isNaN(value) || value < 0) {
+      this.value = currentNumThreads.toString();
+      showErrorStatus('Number of threads must be a non-negative integer');
+      return;
+    }
+
+    currentNumThreads = value;
+
+    // Save the setting
+    await saveSettings();
+
+    // Only reinitialize if not using WebGPU (numThreads only affects WASM)
+    if (!currentUseWebGPU) {
+      showStatus('Reinitializing model with new thread count...', 'loading', false);
+
+      try {
+        await chrome.runtime.sendMessage({
+          type: 'reinitModel',
+          useWebGPU: currentUseWebGPU,
+          numThreads: currentNumThreads
+        });
+
+        showStatus('Model reinitialized successfully', 'loading', true);
+      } catch (error: any) {
+        showErrorStatus(`Failed to reinitialize model: ${error.message}`);
+      }
+    } else {
+      // Just save, don't reinitialize (WebGPU doesn't use threads)
+      showStatus('Thread count saved', 'loading', true);
     }
   });
 

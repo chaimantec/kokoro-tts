@@ -49,7 +49,7 @@ function initAudioContext(): void {
 }
 
 // Function to initialize the web worker and Kokoro model
-async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
+async function initKokoroModel(useWebGPU: boolean = false, numThreads: number = 0): Promise<void> {
   if (isModelReady || isModelLoading) {
     console.log('Model already loaded or loading');
     return;
@@ -97,7 +97,8 @@ async function initKokoroModel(useWebGPU: boolean = false): Promise<void> {
         type: 'initModel',
         data: {
           voicePath: chrome.runtime.getURL('voices') || '/voices',
-          useWebGPU
+          useWebGPU,
+          numThreads
         }
       });
     });
@@ -452,8 +453,8 @@ function isWebGPUAvailable(): boolean {
 }
 
 // Function to reinitialize the model with new WebGPU setting
-async function reinitializeModel(useWebGPU: boolean): Promise<void> {
-  console.log(`Reinitializing model with WebGPU: ${useWebGPU}`);
+async function reinitializeModel(useWebGPU: boolean, numThreads: number = 0): Promise<void> {
+  console.log(`Reinitializing model with WebGPU: ${useWebGPU}, numThreads: ${numThreads}`);
 
   // Stop any current playback
   stopAudio(false);
@@ -468,7 +469,7 @@ async function reinitializeModel(useWebGPU: boolean): Promise<void> {
   }
 
   // Reinitialize with new settings
-  await initKokoroModel(useWebGPU);
+  await initKokoroModel(useWebGPU, numThreads);
 
   console.log('Model reinitialized successfully');
 }
@@ -566,7 +567,8 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
         try {
           // Use the useWebGPU setting from the message, default to true
           const useWebGPU = message.useWebGPU ?? true;
-          await initKokoroModel(useWebGPU);
+          const numThreads = message.numThreads ?? 0;
+          await initKokoroModel(useWebGPU, numThreads);
         } catch (error: any) {
           console.error('Error initializing model: ' + error.message);
           sendResponse({ success: false, error: error.message });

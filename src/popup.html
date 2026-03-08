@@ -437,6 +437,34 @@
         margin-top: 5px;
         line-height: 1.4;
       }
+
+      .text-control {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid var(--primary);
+        border-radius: var(--radius);
+        background-color: var(--paper);
+        font-family: 'Libre Baskerville', Georgia, serif;
+        color: var(--text);
+        font-size: 14px;
+        transition: var(--transition);
+      }
+
+      .text-control:focus {
+        outline: none;
+        border-color: var(--primary-light);
+        box-shadow: 0 0 0 3px rgba(116, 77, 38, 0.2);
+      }
+
+      .text-control:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .input-group {
+        margin: 10px 0;
+      }
     </style>
   </head>
   <body>
@@ -524,28 +552,12 @@
         <div class="slider-controls">
           <div class="slider-group">
             <label for="speedSlider">Speed: <span id="speedValue">1.0</span>x</label>
-            <input
-              type="range"
-              id="speedSlider"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value="1.0"
-              class="slider"
-            />
+            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider" />
           </div>
 
           <div class="slider-group">
             <label for="pitchSlider">Pitch: <span id="pitchValue">1.0</span>x</label>
-            <input
-              type="range"
-              id="pitchSlider"
-              min="0.5"
-              max="2.0"
-              step="0.1"
-              value="1.0"
-              class="slider"
-            />
+            <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="slider" />
           </div>
         </div>
       </div>
@@ -561,8 +573,21 @@
             <span class="toggle-slider"></span>
           </div>
         </label>
+        <p class="toggle-description">Enable for better performance. Disable if you experience issues.</p>
+      </div>
+      <div class="input-group">
+        <label for="numThreadsInput">Number of Threads (0 = auto):</label>
+        <input
+          type="number"
+          id="numThreadsInput"
+          class="text-control"
+          min="0"
+          step="1"
+          value="0"
+          placeholder="0 for auto"
+        />
         <p class="toggle-description">
-          Enable for better performance. Disable if you experience issues.
+          Specify thread count for WASM processing. 0 uses automatic detection. Only applies when WebGPU is disabled.
         </p>
       </div>
     </div>
@@ -572,11 +597,7 @@
       <div id="shortcutInfo">
         <p>Current shortcut: <span id="currentShortcut">Loading...</span></p>
         <p>
-          <a
-            href="#"
-            id="changeShortcutLink"
-            style="color: var(--primary); text-decoration: underline"
-          >
+          <a href="#" id="changeShortcutLink" style="color: var(--primary); text-decoration: underline">
             Change keyboard shortcut
           </a>
         </p>
@@ -591,9 +612,7 @@
           Select text on any webpage and either:
           <ul>
             <li>Click the extension icon in the toolbar to automatically read the selected text</li>
-            <li>
-              Right-click on the selected text and choose "Read with Kokoro" from the context menu
-            </li>
+            <li>Right-click on the selected text and choose "Read with Kokoro" from the context menu</li>
             <li>Use the keyboard shortcut (see above)</li>
           </ul>
         </li>

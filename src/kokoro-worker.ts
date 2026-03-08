@@ -2,7 +2,7 @@ import { KokoroTTS, env, TextSplitterStream } from 'kokoro-js';
 
 // Configure environment for the worker
 env.wasmPaths = '/onnxruntime-web/';
-env.numThreads = Math.max(8, navigator.hardwareConcurrency);
+// numThreads will be set dynamically in initKokoroModel
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 
@@ -27,6 +27,7 @@ interface WorkerMessage {
 interface InitModelData {
   voicePath: string;
   useWebGPU?: boolean;
+  numThreads?: number;
 }
 
 interface GenerateSpeechData {
@@ -44,14 +45,22 @@ interface WorkerResponse {
 }
 
 // Function to initialize the Kokoro model
-async function initKokoroModel(voicePath: string, useWebGPU: boolean = false): Promise<void> {
+async function initKokoroModel(voicePath: string, useWebGPU: boolean = false, numThreads: number = 0): Promise<void> {
   if (kokoroModel || isModelLoading) {
     console.log('Model already loaded or loading in worker');
     return;
   }
 
   console.log('worker: voicePath', voicePath);
+  console.log('worker: useWebGPU', useWebGPU);
+  console.log('worker: numThreads', numThreads);
+
   env.voicePath = voicePath;
+
+  // Set numThreads directly - onnxruntime handles 0 as auto-detect
+  env.numThreads = numThreads;
+  console.log(`Using thread count: ${numThreads} (0 = auto-detect by onnxruntime)`);
+
   isModelLoading = true;
 
   try {
@@ -212,7 +221,7 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
       case 'initModel':
         const initData = data as InitModelData;
         console.log('initData', initData);
-        await initKokoroModel(initData?.voicePath, initData?.useWebGPU || false);
+        await initKokoroModel(initData?.voicePath, initData?.useWebGPU || false, initData?.numThreads ?? 0);
 
         const modelResponse: WorkerResponse = {
           id,

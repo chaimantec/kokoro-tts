@@ -290,7 +290,8 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
       voice: settings.voice,
       speed: settings.speed,
       pitch: settings.pitch,
-      useWebGPU: settings.useWebGPU
+      useWebGPU: settings.useWebGPU,
+      numThreads: settings.numThreads
     });
 
     // Store the current settings
@@ -388,7 +389,8 @@ async function loadSettings(): Promise<TTSSettings> {
         voice: result.ttsSettings.voice || DEFAULT_SETTINGS.voice,
         speed: result.ttsSettings.speed || DEFAULT_SETTINGS.speed,
         pitch: result.ttsSettings.pitch || DEFAULT_SETTINGS.pitch,
-        useWebGPU: result.ttsSettings.useWebGPU ?? DEFAULT_SETTINGS.useWebGPU
+        useWebGPU: result.ttsSettings.useWebGPU ?? DEFAULT_SETTINGS.useWebGPU,
+        numThreads: result.ttsSettings.numThreads ?? DEFAULT_SETTINGS.numThreads
       };
     }
   } catch (error) {
@@ -409,22 +411,24 @@ async function readTextWithCustomTTS(
 ): Promise<void> {
   console.log('Reading text with custom TTS:', text, { voice, speed, pitch });
 
-  // Load settings to get useWebGPU, even if other parameters are provided
+  // Load settings to get useWebGPU and numThreads, even if other parameters are provided
   const settings = await loadSettings();
   let useWebGPU = settings.useWebGPU;
+  let numThreads = settings.numThreads;
 
   // If no parameters are provided, load from storage
   if (voice === undefined && speed === undefined && pitch === undefined) {
     voice = settings.voice;
     speed = settings.speed;
     pitch = settings.pitch;
-    console.log('Using saved settings:', { voice, speed, pitch, useWebGPU });
+    console.log('Using saved settings:', { voice, speed, pitch, useWebGPU, numThreads });
   } else {
-    console.log('Using provided parameters with saved useWebGPU:', {
+    console.log('Using provided parameters with saved useWebGPU and numThreads:', {
       voice,
       speed,
       pitch,
-      useWebGPU
+      useWebGPU,
+      numThreads
     });
   }
 
@@ -466,7 +470,8 @@ async function readTextWithCustomTTS(
       voice: voice || undefined,
       speed: speed || undefined,
       pitch: pitch || undefined,
-      useWebGPU: useWebGPU
+      useWebGPU: useWebGPU,
+      numThreads: numThreads
     });
 
     console.log('Sent play audio message to offscreen document');

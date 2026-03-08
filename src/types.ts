@@ -41,6 +41,7 @@ export interface TTSSettings {
   speed: number;
   pitch: number;
   useWebGPU: boolean;
+  numThreads: number;
 }
 
 // Default settings
@@ -48,7 +49,8 @@ export const DEFAULT_SETTINGS: TTSSettings = {
   voice: 'af_heart',
   speed: 1.0,
   pitch: 1.0,
-  useWebGPU: true
+  useWebGPU: true,
+  numThreads: 0
 };
 
 // Message types
@@ -93,6 +95,7 @@ export interface StopPlaybackMessage {
 export interface ReinitModelMessage {
   type: 'reinitModel';
   useWebGPU: boolean;
+  numThreads?: number;
 }
 
 export type PlaybackStatus = 'idle' | 'playing' | 'paused';
@@ -117,6 +120,7 @@ export interface PlayAudioMessage {
   speed?: number;
   pitch?: number;
   useWebGPU?: boolean;
+  numThreads?: number;
 }
 
 export interface PauseAudioMessage {
@@ -144,6 +148,7 @@ export interface ReinitModelOffscreenMessage {
   target: 'offscreen';
   type: 'reinitModel';
   useWebGPU: boolean;
+  numThreads?: number;
 }
 
 export interface ModelStatusMessage {
