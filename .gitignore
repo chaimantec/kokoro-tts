@@ -25,6 +25,7 @@ dist-ssr
 
 chunk*.wav
 *.zip
+*.tar.bz2
 dist.crx
 dist.pem
 *.onnx

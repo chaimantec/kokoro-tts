@@ -1,7 +1,8 @@
 import { KokoroTTS, env, TextSplitterStream } from 'kokoro-js';
 
 // Configure environment for the worker
-env.wasmPaths = "/onnxruntime-web/"
+env.wasmPaths = '/onnxruntime-web/';
+env.numThreads = Math.max(8, navigator.hardwareConcurrency);
 env.allowRemoteModels = false;
 env.allowLocalModels = true;
 
@@ -14,7 +15,7 @@ declare global {
 // Worker state
 let kokoroModel: any = null;
 let isModelLoading = false;
-let currentPlaybackId:string = '';
+let currentPlaybackId: string = '';
 
 // Message types for worker communication
 interface WorkerMessage {
@@ -50,7 +51,7 @@ async function initKokoroModel(voicePath: string, useWebGPU: boolean = false): P
   }
 
   console.log('worker: voicePath', voicePath);
-  env.voicePath = voicePath
+  env.voicePath = voicePath;
   isModelLoading = true;
 
   try {
@@ -92,7 +93,13 @@ async function initKokoroModel(voicePath: string, useWebGPU: boolean = false): P
 }
 
 // Function to generate speech using Kokoro TTS
-async function generateSpeech(text: string, voice: string, speed:number, pitch:number, playbackId: string): Promise<void> {
+async function generateSpeech(
+  text: string,
+  voice: string,
+  speed: number,
+  pitch: number,
+  playbackId: string
+): Promise<void> {
   console.log(`Generating speech in worker for: "${text}" with voice: ${voice || 'default'}`);
 
   if (!kokoroModel) {
@@ -122,12 +129,14 @@ async function generateSpeech(text: string, voice: string, speed:number, pitch:n
     let sentenceCount = 0;
     let totalAudioLength = 0;
 
-    console.log("worker about to stream...");
+    console.log('worker about to stream...');
 
     // Start streaming generation with voice parameter if provided
     for await (const chunk of kokoroModel.stream(splitter, options)) {
       if (currentPlaybackId !== playbackId) {
-        console.log(`Received audio chunk for old playback session - ignoring. Current playback ID: ${currentPlaybackId}, received playback ID: ${playbackId}`);
+        console.log(
+          `Received audio chunk for old playback session - ignoring. Current playback ID: ${currentPlaybackId}, received playback ID: ${playbackId}`
+        );
         continue;
       }
 
@@ -153,10 +162,14 @@ async function generateSpeech(text: string, voice: string, speed:number, pitch:n
       totalAudioLength += chunk.audio.audio.length;
 
       // Log detailed information about the audio chunk
-      console.log(`Audio chunk ${sentenceCount}: length=${chunk.audio.audio.length}, sampling_rate=${chunk.audio.sampling_rate}`);
+      console.log(
+        `Audio chunk ${sentenceCount}: length=${chunk.audio.audio.length}, sampling_rate=${chunk.audio.sampling_rate}`
+      );
     }
 
-    console.log(`Speech generation completed in worker! Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`);
+    console.log(
+      `Speech generation completed in worker! Generated ${sentenceCount} chunks with total length: ${totalAudioLength} samples`
+    );
 
     // Send completion message
     const completionResponse: WorkerResponse = {
@@ -200,7 +213,7 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
         const initData = data as InitModelData;
         console.log('initData', initData);
         await initKokoroModel(initData?.voicePath, initData?.useWebGPU || false);
-        
+
         const modelResponse: WorkerResponse = {
           id,
           type: 'modelReady',
@@ -211,7 +224,13 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
 
       case 'generateSpeech':
         const speechData = data as GenerateSpeechData;
-        await generateSpeech(speechData.text, speechData.voice, speechData.speed, speechData.pitch, speechData.playbackId);
+        await generateSpeech(
+          speechData.text,
+          speechData.voice,
+          speechData.speed,
+          speechData.pitch,
+          speechData.playbackId
+        );
         break;
 
       default:
@@ -219,7 +238,7 @@ self.addEventListener('message', async (event: MessageEvent<WorkerMessage>) => {
     }
   } catch (error: any) {
     console.error(`Error handling message in worker: ${error.message}`);
-    
+
     const errorResponse: WorkerResponse = {
       id,
       type: type === 'initModel' ? 'modelError' : 'generationError',
