@@ -26,7 +26,7 @@ async function saveSettings(): Promise<void> {
   };
 
   try {
-    await chrome.storage.sync.set({ ttsSettings: settings });
+    await chrome.storage.local.set({ ttsSettings: settings });
     console.log('Settings saved:', settings);
   } catch (error) {
     console.error('Error saving settings:', error);
@@ -36,7 +36,7 @@ async function saveSettings(): Promise<void> {
 // Function to load settings from Chrome storage
 async function loadSettings(): Promise<void> {
   try {
-    const result = await chrome.storage.sync.get('ttsSettings');
+    const result = await chrome.storage.local.get('ttsSettings');
     if (result.ttsSettings) {
       currentVoice = result.ttsSettings.voice || DEFAULT_SETTINGS.voice;
       currentSpeed = result.ttsSettings.speed || DEFAULT_SETTINGS.speed;

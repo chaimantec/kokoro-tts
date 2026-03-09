@@ -382,7 +382,7 @@ async function ensureOffscreenDocument(): Promise<void> {
 // Function to load settings from Chrome storage
 async function loadSettings(): Promise<TTSSettings> {
   try {
-    const result = await chrome.storage.sync.get('ttsSettings');
+    const result = await chrome.storage.local.get('ttsSettings');
     if (result.ttsSettings) {
       console.log('Settings loaded:', result.ttsSettings);
       return {
