@@ -7,7 +7,7 @@
  * @returns {boolean}
  */
 function isSentenceTerminator(c, includeNewlines = true) {
-  return ".!?…。？！".includes(c) || (includeNewlines && c === "\n");
+  return '.!?…。？！'.includes(c) || (includeNewlines && c === '\n');
 }
 
 /**
@@ -17,7 +17,7 @@ function isSentenceTerminator(c, includeNewlines = true) {
  * @returns {boolean}
  */
 function isTrailingChar(c) {
-  return "\"')]}」』".includes(c);
+  return '"\')]}」』'.includes(c);
 }
 
 /**
@@ -37,7 +37,58 @@ function getTokenFromBuffer(buffer, start) {
 
 // List of common abbreviations. Note that strings with single letters joined by periods
 // (e.g., "i.e", "e.g", "u.s.a", "u.s") are handled separately.
-const ABBREVIATIONS = new Set(["mr", "mrs", "ms", "dr", "prof", "sr", "jr", "sgt", "col", "gen", "rep", "sen", "gov", "lt", "maj", "capt", "st", "mt", "etc", "co", "inc", "ltd", "dept", "vs", "p", "pg", "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec", "sun", "mon", "tu", "tue", "tues", "wed", "th", "thu", "thur", "thurs", "fri", "sat"]);
+const ABBREVIATIONS = new Set([
+  'mr',
+  'mrs',
+  'ms',
+  'dr',
+  'prof',
+  'sr',
+  'jr',
+  'sgt',
+  'col',
+  'gen',
+  'rep',
+  'sen',
+  'gov',
+  'lt',
+  'maj',
+  'capt',
+  'st',
+  'mt',
+  'etc',
+  'co',
+  'inc',
+  'ltd',
+  'dept',
+  'vs',
+  'p',
+  'pg',
+  'jan',
+  'feb',
+  'mar',
+  'apr',
+  'jun',
+  'jul',
+  'aug',
+  'sep',
+  'sept',
+  'oct',
+  'nov',
+  'dec',
+  'sun',
+  'mon',
+  'tu',
+  'tue',
+  'tues',
+  'wed',
+  'th',
+  'thu',
+  'thur',
+  'thurs',
+  'fri',
+  'sat'
+]);
 
 /**
  * Determines if the given token (or series of initials) is a known abbreviation.
@@ -46,7 +97,7 @@ const ABBREVIATIONS = new Set(["mr", "mrs", "ms", "dr", "prof", "sr", "jr", "sgt
  */
 function isAbbreviation(token) {
   // Remove possessive endings and trailing periods.
-  token = token.replace(/['’]s$/i, "").replace(/\.+$/, "");
+  token = token.replace(/['’]s$/i, '').replace(/\.+$/, '');
   return ABBREVIATIONS.has(token.toLowerCase());
 }
 
@@ -80,10 +131,16 @@ const OPENING = new Set(MATCHING.values());
 function updateStack(c, stack, i, buffer) {
   // Handle standard quotes.
   return;
-  
+
   if (c === '"' || c === "'") {
     // Ignore an apostrophe if it's between letters (e.g., in contractions).
-    if (c === "'" && i > 0 && i < buffer.length - 1 && /[A-Za-z]/.test(buffer[i - 1]) && /[A-Za-z]/.test(buffer[i + 1])) {
+    if (
+      c === "'" &&
+      i > 0 &&
+      i < buffer.length - 1 &&
+      /[A-Za-z]/.test(buffer[i - 1]) &&
+      /[A-Za-z]/.test(buffer[i + 1])
+    ) {
       return;
     }
     if (stack.length && stack.at(-1) === c) {
@@ -110,7 +167,7 @@ function updateStack(c, stack, i, buffer) {
  */
 export class TextSplitterStream {
   constructor() {
-    this._buffer = "";
+    this._buffer = '';
     this._sentences = [];
     this._resolver = null;
     this._closed = false;
@@ -134,7 +191,7 @@ export class TextSplitterStream {
    */
   close() {
     if (this._closed) {
-      throw new Error("Stream is already closed.");
+      throw new Error('Stream is already closed.');
     }
     this._closed = true;
     this.flush();
@@ -148,7 +205,7 @@ export class TextSplitterStream {
     if (remainder.length > 0) {
       this._sentences.push(remainder);
     }
-    this._buffer = "";
+    this._buffer = '';
     this._resolve();
   }
 
@@ -187,6 +244,19 @@ export class TextSplitterStream {
       while (end + 1 < len && isTrailingChar(buffer[end + 1])) {
         ++end;
       }
+      // Consume contiguous citation references, e.g. [7][8] or [citation needed].
+      while (end + 1 < len && buffer[end + 1] === '[') {
+        let refEnd = end + 2;
+        while (refEnd < len && buffer[refEnd] !== ']') {
+          ++refEnd;
+        }
+        if (refEnd < len && buffer[refEnd] === ']') {
+          end = refEnd;
+        } else {
+          break;
+        }
+      }
+
       let nextNonSpace = end + 1;
       while (nextNonSpace < len && /\s/.test(buffer[nextNonSpace])) {
         ++nextNonSpace;
@@ -211,7 +281,7 @@ export class TextSplitterStream {
 
         // If the terminator is not a newline and there's no extra whitespace,
         // we might be in the middle of a token (e.g., "$9.99"), so skip splitting.
-        if (i === nextNonSpace - 1 && c !== "\n") {
+        if (i === nextNonSpace - 1 && c !== '\n') {
           ++i;
           continue;
         }
@@ -236,7 +306,7 @@ export class TextSplitterStream {
         // --- URL/email protection ---
         // If the token appears to be a URL or email (contains "://" or "@")
         // and does not already end with a terminator, skip splitting.
-        if ((/https?[,:]\/\//.test(token) || token.includes("@")) && !isSentenceTerminator(token.at(-1))) {
+        if ((/https?[,:]\/\//.test(token) || token.includes('@')) && !isSentenceTerminator(token.at(-1))) {
           i = tokenStart + token.length;
           continue;
         }
@@ -258,14 +328,14 @@ export class TextSplitterStream {
         // --- Lookahead heuristic ---
         // If the terminator is a period and the next non–whitespace character is lowercase,
         // assume it is not the end of a sentence.
-        if (c === "." && nextNonSpace < len && /[a-z]/.test(buffer[nextNonSpace])) {
+        if (c === '.' && nextNonSpace < len && /[a-z]/.test(buffer[nextNonSpace])) {
           ++i;
           continue;
         }
 
         // Special case: ellipsis that stands alone should be merged with the following sentence.
         const sentence = buffer.substring(sentenceStart, boundaryEnd + 1).trim();
-        if (sentence === "..." || sentence === "…") {
+        if (sentence === '...' || sentence === '…') {
           ++i;
           continue;
         }
@@ -296,7 +366,7 @@ export class TextSplitterStream {
    */
   async *[Symbol.asyncIterator]() {
     if (this._resolver) {
-      throw new Error("Another iterator is already active.");
+      throw new Error('Another iterator is already active.');
     }
     while (true) {
       if (this._sentences.length > 0) {
