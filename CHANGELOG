@@ -2,6 +2,7 @@
 
 - Settings are now stored locally on each machine instead of syncing across Chrome instances. This ensures hardware-specific settings (WebGPU, thread count) are appropriate for each machine's capabilities.
 - Fix bug where some sentences with citation were not being split correctly.
+- Change icon from heart to leaf
 
   1.2.0
 
