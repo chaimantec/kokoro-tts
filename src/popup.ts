@@ -1,4 +1,12 @@
-import { PlaybackInfoResponse, AVAILABLE_VOICES, TTSSettings, DEFAULT_SETTINGS } from './types';
+import {
+  PlaybackInfoResponse,
+  AVAILABLE_VOICES,
+  TTSSettings,
+  DEFAULT_SETTINGS,
+  DictionaryEntry,
+  TTS_DICTIONARY_STORAGE_KEY,
+  normalizeDictionaryEntries
+} from './types';
 
 // Enum for playback state
 enum PlaybackState {
@@ -14,6 +22,8 @@ let currentSpeed: number = DEFAULT_SETTINGS.speed;
 let currentPitch: number = DEFAULT_SETTINGS.pitch;
 let currentUseWebGPU: boolean = DEFAULT_SETTINGS.useWebGPU;
 let currentNumThreads: number = DEFAULT_SETTINGS.numThreads;
+let dictionaryEntries: DictionaryEntry[] = [];
+let editingDictionaryEntryId: string | null = null;
 
 // Function to save settings to Chrome storage
 async function saveSettings(): Promise<void> {
@@ -192,6 +202,219 @@ function hideStatus(): void {
   }
 }
 
+async function loadDictionary(): Promise<void> {
+  try {
+    const result = await chrome.storage.sync.get(TTS_DICTIONARY_STORAGE_KEY);
+    dictionaryEntries = normalizeDictionaryEntries(result[TTS_DICTIONARY_STORAGE_KEY]);
+    renderDictionary();
+  } catch (error) {
+    console.error('Error loading dictionary:', error);
+    dictionaryEntries = [];
+    renderDictionary();
+    showErrorStatus('Unable to load dictionary.');
+  }
+}
+
+async function saveDictionary(): Promise<void> {
+  try {
+    await chrome.storage.sync.set({ [TTS_DICTIONARY_STORAGE_KEY]: dictionaryEntries });
+    renderDictionary();
+  } catch (error) {
+    console.error('Error saving dictionary:', error);
+    showErrorStatus('Unable to save dictionary.');
+  }
+}
+
+function showMainPage(): void {
+  const mainPage = document.getElementById('mainPage') as HTMLElement | null;
+  const dictionaryPage = document.getElementById('dictionaryPage') as HTMLElement | null;
+
+  if (mainPage && dictionaryPage) {
+    mainPage.hidden = false;
+    dictionaryPage.hidden = true;
+  }
+}
+
+function showDictionaryPage(): void {
+  const mainPage = document.getElementById('mainPage') as HTMLElement | null;
+  const dictionaryPage = document.getElementById('dictionaryPage') as HTMLElement | null;
+
+  if (mainPage && dictionaryPage) {
+    mainPage.hidden = true;
+    dictionaryPage.hidden = false;
+  }
+
+  loadDictionary();
+}
+
+function resetDictionaryForm(): void {
+  const wordInput = document.getElementById('dictionaryWordInput') as HTMLInputElement | null;
+  const pronunciationInput = document.getElementById('dictionaryPronunciationInput') as HTMLInputElement | null;
+  const caseSensitiveInput = document.getElementById('dictionaryCaseSensitiveInput') as HTMLInputElement | null;
+  const saveButton = document.getElementById('saveDictionaryEntryButton') as HTMLButtonElement | null;
+
+  editingDictionaryEntryId = null;
+
+  if (wordInput) {
+    wordInput.value = '';
+  }
+
+  if (pronunciationInput) {
+    pronunciationInput.value = '';
+  }
+
+  if (caseSensitiveInput) {
+    caseSensitiveInput.checked = true;
+  }
+
+  if (saveButton) {
+    saveButton.textContent = 'Add';
+  }
+}
+
+function editDictionaryEntry(entry: DictionaryEntry): void {
+  const wordInput = document.getElementById('dictionaryWordInput') as HTMLInputElement | null;
+  const pronunciationInput = document.getElementById('dictionaryPronunciationInput') as HTMLInputElement | null;
+  const caseSensitiveInput = document.getElementById('dictionaryCaseSensitiveInput') as HTMLInputElement | null;
+  const saveButton = document.getElementById('saveDictionaryEntryButton') as HTMLButtonElement | null;
+
+  editingDictionaryEntryId = entry.id;
+
+  if (wordInput) {
+    wordInput.value = entry.word;
+    wordInput.focus();
+  }
+
+  if (pronunciationInput) {
+    pronunciationInput.value = entry.pronunciation;
+  }
+
+  if (caseSensitiveInput) {
+    caseSensitiveInput.checked = entry.caseSensitive;
+  }
+
+  if (saveButton) {
+    saveButton.textContent = 'Update';
+  }
+}
+
+function renderDictionary(): void {
+  const dictionaryList = document.getElementById('dictionaryList') as HTMLDivElement | null;
+
+  if (!dictionaryList) {
+    return;
+  }
+
+  dictionaryList.replaceChildren();
+
+  if (dictionaryEntries.length === 0) {
+    const emptyMessage = document.createElement('p');
+    emptyMessage.className = 'dictionary-empty';
+    emptyMessage.textContent = 'No dictionary entries yet.';
+    dictionaryList.appendChild(emptyMessage);
+    return;
+  }
+
+  const tableWrap = document.createElement('div');
+  tableWrap.className = 'dictionary-table-wrap';
+
+  const table = document.createElement('table');
+  table.className = 'dictionary-table';
+
+  const colgroup = document.createElement('colgroup');
+  const wordColumn = document.createElement('col');
+  wordColumn.className = 'dictionary-word-column';
+  const pronunciationColumn = document.createElement('col');
+  pronunciationColumn.className = 'dictionary-pronunciation-column';
+  const caseColumn = document.createElement('col');
+  caseColumn.className = 'dictionary-case-column';
+  const actionColumn = document.createElement('col');
+  actionColumn.className = 'dictionary-action-column';
+  colgroup.append(wordColumn, pronunciationColumn, caseColumn, actionColumn);
+
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['Word', 'Pronunciation', 'Case', ''].forEach((label) => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+
+  const tbody = document.createElement('tbody');
+
+  dictionaryEntries.forEach((entry) => {
+    const row = document.createElement('tr');
+
+    const wordElement = document.createElement('td');
+    wordElement.className = 'dictionary-word-cell';
+    wordElement.textContent = entry.word;
+
+    const pronunciationElement = document.createElement('td');
+    pronunciationElement.className = 'dictionary-pronunciation-cell';
+    pronunciationElement.textContent = entry.pronunciation;
+
+    const caseElement = document.createElement('td');
+    const caseBadge = document.createElement('span');
+    caseBadge.className = 'dictionary-case-badge';
+    caseBadge.textContent = entry.caseSensitive ? 'Exact' : 'Ignore';
+    caseElement.appendChild(caseBadge);
+
+    const actionsCell = document.createElement('td');
+    const actionsElement = document.createElement('div');
+    actionsElement.className = 'dictionary-table-actions';
+
+    const editButton = document.createElement('button');
+    editButton.className = 'button secondary-button table-action-button';
+    editButton.type = 'button';
+    editButton.title = 'Edit';
+    editButton.setAttribute('aria-label', `Edit ${entry.word}`);
+    editButton.innerHTML =
+      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M4 17.3V20h2.7L17.8 8.9l-2.7-2.7L4 17.3zM19.7 7c.4-.4.4-1 0-1.4l-1.3-1.3a1 1 0 0 0-1.4 0l-1 1 2.7 2.7 1-1z"/></svg>';
+    editButton.addEventListener('click', () => editDictionaryEntry(entry));
+
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'button danger-button table-action-button';
+    deleteButton.type = 'button';
+    deleteButton.title = 'Delete';
+    deleteButton.setAttribute('aria-label', `Delete ${entry.word}`);
+    deleteButton.innerHTML =
+      '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V7H6v12zM8 4l1-1h6l1 1h4v2H4V4h4z"/></svg>';
+    deleteButton.addEventListener('click', async () => {
+      dictionaryEntries = dictionaryEntries.filter((candidate) => candidate.id !== entry.id);
+      if (editingDictionaryEntryId === entry.id) {
+        resetDictionaryForm();
+      }
+      await saveDictionary();
+    });
+
+    actionsElement.append(editButton, deleteButton);
+    actionsCell.appendChild(actionsElement);
+    row.append(wordElement, pronunciationElement, caseElement, actionsCell);
+    tbody.appendChild(row);
+  });
+
+  table.append(colgroup, thead, tbody);
+  tableWrap.appendChild(table);
+  dictionaryList.appendChild(tableWrap);
+}
+
+function createDictionaryEntryId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function hasSameDictionaryKey(entry: DictionaryEntry, word: string, caseSensitive: boolean): boolean {
+  if (entry.caseSensitive !== caseSensitive) {
+    return false;
+  }
+
+  return caseSensitive ? entry.word === word : entry.word.toLowerCase() === word.toLowerCase();
+}
+
+function normalizeSelectedText(text: string): string {
+  return text.replace(/[\r\n]+/g, ' ').replace(/[ \t\f\v]+/g, ' ').trim();
+}
+
 // Function to pause playback
 function pausePlayback(): void {
   if (playbackState === PlaybackState.PLAYING) {
@@ -330,7 +553,7 @@ async function getSelectedTextFromActiveTab(): Promise<string> {
       func: () => window.getSelection()?.toString() || ''
     });
 
-    const selectedText = results[0].result as string;
+    const selectedText = normalizeSelectedText(results[0].result as string);
     console.log('Selected text:', selectedText);
     return selectedText;
   } catch (error) {
@@ -354,6 +577,12 @@ document.addEventListener('DOMContentLoaded', function () {
   const downloadModelButton = document.getElementById('downloadModelButton') as HTMLButtonElement;
   const webgpuToggle = document.getElementById('webgpuToggle') as HTMLInputElement;
   const numThreadsInput = document.getElementById('numThreadsInput') as HTMLInputElement;
+  const openDictionaryButton = document.getElementById('openDictionaryButton') as HTMLButtonElement;
+  const backToMainButton = document.getElementById('backToMainButton') as HTMLButtonElement;
+  const dictionaryForm = document.getElementById('dictionaryForm') as HTMLFormElement;
+  const dictionaryWordInput = document.getElementById('dictionaryWordInput') as HTMLInputElement;
+  const dictionaryPronunciationInput = document.getElementById('dictionaryPronunciationInput') as HTMLInputElement;
+  const dictionaryCaseSensitiveInput = document.getElementById('dictionaryCaseSensitiveInput') as HTMLInputElement;
 
   console.log('Kokoro Speak TTS Engine popup opened');
 
@@ -554,6 +783,55 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  openDictionaryButton.addEventListener('click', function () {
+    showDictionaryPage();
+  });
+
+  backToMainButton.addEventListener('click', function () {
+    resetDictionaryForm();
+    showMainPage();
+  });
+
+  dictionaryForm.addEventListener('submit', async function (event) {
+    event.preventDefault();
+
+    const word = dictionaryWordInput.value.trim();
+    const pronunciation = dictionaryPronunciationInput.value.trim();
+    const caseSensitive = dictionaryCaseSensitiveInput.checked;
+
+    if (!word || !pronunciation) {
+      showErrorStatus('Dictionary word and pronunciation are required.');
+      return;
+    }
+
+    const duplicateEntry = dictionaryEntries.find(
+      (entry) => entry.id !== editingDictionaryEntryId && hasSameDictionaryKey(entry, word, caseSensitive)
+    );
+
+    if (duplicateEntry) {
+      duplicateEntry.word = word;
+      duplicateEntry.pronunciation = pronunciation;
+      dictionaryEntries = dictionaryEntries.filter((entry) => entry.id !== editingDictionaryEntryId);
+    } else if (editingDictionaryEntryId) {
+      dictionaryEntries = dictionaryEntries.map((entry) =>
+        entry.id === editingDictionaryEntryId ? { ...entry, word, pronunciation, caseSensitive } : entry
+      );
+    } else {
+      dictionaryEntries = [
+        ...dictionaryEntries,
+        {
+          id: createDictionaryEntryId(),
+          word,
+          pronunciation,
+          caseSensitive
+        }
+      ];
+    }
+
+    await saveDictionary();
+    resetDictionaryForm();
+  });
+
   // Initialize playback controls state
   updatePlaybackControls();
 
@@ -598,6 +876,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Load and display keyboard shortcut information
   loadKeyboardShortcutInfo();
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'sync' || !changes[TTS_DICTIONARY_STORAGE_KEY]) {
+    return;
+  }
+
+  dictionaryEntries = normalizeDictionaryEntries(changes[TTS_DICTIONARY_STORAGE_KEY].newValue);
+  renderDictionary();
 });
 
 // Function to load and display keyboard shortcut information

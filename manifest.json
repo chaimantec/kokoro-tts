@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kokoro Speak",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "In-browser Kokoro TTS Engine",
   "permissions": ["ttsEngine", "storage", "contextMenus", "offscreen", "commands", "scripting", "activeTab"],
   "cross_origin_embedder_policy": {

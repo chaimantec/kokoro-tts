@@ -352,7 +352,13 @@ function generatePlaybackId(): string {
 }
 
 // Function to play audio using Kokoro TTS via web worker
-async function playAudioWithKokoro(text: string, voice: string, speed: number, pitch: number): Promise<void> {
+async function playAudioWithKokoro(
+  text: string,
+  voice: string,
+  speed: number,
+  pitch: number,
+  eventUtterance: string = text
+): Promise<void> {
   console.log(
     `Generating speech for: "${text}" with voice: ${voice || 'default'}, speed: ${speed || 1.0}, pitch: ${pitch || 1.0}`
   );
@@ -376,7 +382,7 @@ async function playAudioWithKokoro(text: string, voice: string, speed: number, p
     chrome.runtime.sendMessage({
       type: 'ttsEvent',
       eventType: 'start',
-      utterance: text
+      utterance: eventUtterance
     });
 
     // Ensure we have a worker and model ready
@@ -417,7 +423,7 @@ async function playAudioWithKokoro(text: string, voice: string, speed: number, p
         chrome.runtime.sendMessage({
           type: 'ttsEvent',
           eventType: 'end',
-          utterance: text
+          utterance: eventUtterance
         });
 
         chrome.runtime.sendMessage({
@@ -438,7 +444,7 @@ async function playAudioWithKokoro(text: string, voice: string, speed: number, p
       chrome.runtime.sendMessage({
         type: 'ttsEvent',
         eventType: 'error',
-        utterance: text,
+        utterance: eventUtterance,
         errorMessage: `Error generating speech: ${error.message}`
       });
     }
@@ -578,7 +584,13 @@ chrome.runtime.onMessage.addListener(async (message: OffscreenMessage, _sender, 
 
       stopAudio(false);
 
-      playAudioWithKokoro(message.text, message.voice || 'af_heart', message.speed || 1.0, message.pitch || 1.0)
+      playAudioWithKokoro(
+        message.text,
+        message.voice || 'af_heart',
+        message.speed || 1.0,
+        message.pitch || 1.0,
+        message.eventUtterance || message.text
+      )
         .then(() => {
           sendResponse({ success: true });
         })

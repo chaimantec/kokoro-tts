@@ -1,4 +1,11 @@
-import { BackgroundMessage, TTSSettings, DEFAULT_SETTINGS } from './types';
+import {
+  BackgroundMessage,
+  TTSSettings,
+  DEFAULT_SETTINGS,
+  TTS_DICTIONARY_STORAGE_KEY,
+  applyDictionaryToText,
+  normalizeDictionaryEntries
+} from './types';
 
 // Global variables to track state
 let isSpeaking = false;
@@ -282,11 +289,14 @@ chrome.ttsEngine.onSpeak.addListener(async (utterance, options, sendTtsEvent) =>
     // Ensure we have an offscreen document
     await ensureOffscreenDocument();
 
+    const textForSpeech = await applyDictionary(utterance);
+
     // Send message to offscreen document to play audio with saved settings
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
-      text: utterance,
+      text: textForSpeech,
+      eventUtterance: utterance,
       voice: settings.voice,
       speed: settings.speed,
       pitch: settings.pitch,
@@ -402,6 +412,21 @@ async function loadSettings(): Promise<TTSSettings> {
   return { ...DEFAULT_SETTINGS };
 }
 
+async function applyDictionary(text: string): Promise<string> {
+  try {
+    const result = await chrome.storage.sync.get(TTS_DICTIONARY_STORAGE_KEY);
+    const dictionary = normalizeDictionaryEntries(result[TTS_DICTIONARY_STORAGE_KEY]);
+    return applyDictionaryToText(text, dictionary);
+  } catch (error) {
+    console.error('Error loading dictionary:', error);
+    return text;
+  }
+}
+
+function normalizeSelectedText(text: string): string {
+  return text.replace(/[\r\n]+/g, ' ').replace(/[ \t\f\v]+/g, ' ').trim();
+}
+
 // Function to read text using our custom TTS engine via the offscreen document
 async function readTextWithCustomTTS(
   text: string,
@@ -462,11 +487,14 @@ async function readTextWithCustomTTS(
     // Ensure we have an offscreen document
     await ensureOffscreenDocument();
 
+    const textForSpeech = await applyDictionary(text);
+
     // Send message to offscreen document to play audio
     await chrome.runtime.sendMessage({
       target: 'offscreen',
       type: 'playAudio',
-      text: text,
+      text: textForSpeech,
+      eventUtterance: text,
       voice: voice || undefined,
       speed: speed || undefined,
       pitch: pitch || undefined,
@@ -548,7 +576,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId === 'readSelectedText' && info.selectionText) {
     // Read the selected text using our custom TTS engine
-    await readTextWithCustomTTS(info.selectionText);
+    await readTextWithCustomTTS(normalizeSelectedText(info.selectionText));
   }
 });
 
@@ -574,7 +602,7 @@ chrome.commands.onCommand.addListener(async (command) => {
         func: () => window.getSelection()?.toString() || ''
       });
 
-      const selectedText = results[0].result as string;
+      const selectedText = normalizeSelectedText(results[0].result as string);
       console.log('Selected text:', selectedText);
 
       if (selectedText) {

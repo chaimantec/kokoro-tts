@@ -465,6 +465,183 @@
       .input-group {
         margin: 10px 0;
       }
+
+      .page[hidden] {
+        display: none;
+      }
+
+      .section-action {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .secondary-button {
+        background-color: #9e7b4f;
+      }
+
+      .secondary-button:hover {
+        background-color: #876a43;
+      }
+
+      .danger-button {
+        background-color: #9b3a2f;
+      }
+
+      .danger-button:hover {
+        background-color: #7f2e25;
+      }
+
+      .icon-button {
+        width: 36px;
+        height: 36px;
+        padding: 8px;
+      }
+
+      .dictionary-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .dictionary-header h2 {
+        color: var(--primary);
+        font-size: 18px;
+        margin: 0;
+      }
+
+      .dictionary-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+        gap: 12px;
+        align-items: end;
+      }
+
+      .dictionary-form .input-group {
+        margin: 0;
+      }
+
+      .dictionary-list {
+        margin-top: 12px;
+      }
+
+      .dictionary-empty {
+        color: var(--text);
+        font-size: 13px;
+        opacity: 0.75;
+      }
+
+      .dictionary-options {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        min-height: 24px;
+      }
+
+      .dictionary-submit {
+        grid-column: 1 / -1;
+        height: 42px;
+      }
+
+      .dictionary-table-wrap {
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid rgba(116, 77, 38, 0.45);
+        border-radius: var(--radius);
+        background-color: var(--paper);
+      }
+
+      .dictionary-table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        font-size: 12px;
+      }
+
+      .dictionary-table th,
+      .dictionary-table td {
+        padding: 8px 6px;
+        border-bottom: 1px solid rgba(116, 77, 38, 0.2);
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      .dictionary-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background-color: #f1d7ad;
+        font-weight: 700;
+        color: var(--primary);
+      }
+
+      .dictionary-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .dictionary-word-cell,
+      .dictionary-pronunciation-cell {
+        overflow-wrap: anywhere;
+      }
+
+      .dictionary-word-column {
+        width: 24%;
+      }
+
+      .dictionary-pronunciation-column {
+        width: 32%;
+      }
+
+      .dictionary-case-column {
+        width: 58px;
+      }
+
+      .dictionary-action-column {
+        width: 70px;
+      }
+
+      .dictionary-case-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 999px;
+        background-color: rgba(116, 77, 38, 0.12);
+        color: var(--primary-dark);
+        font-size: 11px;
+        line-height: 1.4;
+        white-space: nowrap;
+      }
+
+      .dictionary-table-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .table-action-button {
+        width: 28px;
+        height: 28px;
+        padding: 6px;
+        border-radius: 6px;
+        box-shadow: none;
+      }
+
+      .checkbox-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.2;
+        color: var(--text);
+        white-space: nowrap;
+      }
+
+      .checkbox-label input {
+        flex-shrink: 0;
+        width: 16px;
+        height: 16px;
+      }
     </style>
   </head>
   <body>
@@ -481,7 +658,8 @@
 
     <!-- Model is now bundled, no download message needed -->
 
-    <div class="input-section">
+    <main id="mainPage" class="page">
+      <div class="input-section">
       <label for="textInput">Enter or paste text to read:</label>
       <textarea id="textInput" placeholder="Type or paste your text here..."></textarea>
 
@@ -564,6 +742,13 @@
     </div>
 
     <div class="settings-section">
+      <div class="section-action">
+        <p class="settings-title">Dictionary:</p>
+        <button class="button secondary-button" id="openDictionaryButton" type="button">Dictionary</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
       <p class="settings-title">Performance Settings:</p>
       <div class="toggle-control">
         <label for="webgpuToggle" class="toggle-label">
@@ -624,6 +809,44 @@
         </li>
       </ol>
     </div>
+    </main>
+
+    <main id="dictionaryPage" class="page" hidden>
+      <div class="dictionary-header">
+        <button class="button secondary-button icon-button" id="backToMainButton" type="button" aria-label="Back">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path fill="currentColor" d="M20 11H7.8l5.6-5.6L12 4 4 12l8 8 1.4-1.4L7.8 13H20z" />
+          </svg>
+        </button>
+        <h2>Dictionary</h2>
+      </div>
+
+      <div class="settings-section">
+        <p class="settings-title">Add Pronunciation:</p>
+        <form id="dictionaryForm" class="dictionary-form">
+          <div class="input-group">
+            <label for="dictionaryWordInput">Word:</label>
+            <input id="dictionaryWordInput" class="text-control" type="text" placeholder="OSPF" />
+          </div>
+          <div class="input-group">
+            <label for="dictionaryPronunciationInput">Pronunciation:</label>
+            <input id="dictionaryPronunciationInput" class="text-control" type="text" placeholder="O-S-P-F" />
+          </div>
+          <div class="dictionary-options">
+            <label class="checkbox-label" for="dictionaryCaseSensitiveInput">
+              <input id="dictionaryCaseSensitiveInput" type="checkbox" checked />
+              <span>Case-sensitive</span>
+            </label>
+          </div>
+          <button class="button dictionary-submit" id="saveDictionaryEntryButton" type="submit">Add</button>
+        </form>
+      </div>
+
+      <div class="settings-section">
+        <p class="settings-title">Entries:</p>
+        <div id="dictionaryList" class="dictionary-list"></div>
+      </div>
+    </main>
 
     <script src="popup.ts" type="module"></script>
   </body>
